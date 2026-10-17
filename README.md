@@ -1,5 +1,17 @@
 # LOE Energy Monitor
 
+[![Tests](https://img.shields.io/github/actions/workflow/status/fastiuk/loe-energy-monitor/tests.yml?branch=main&label=tests&logo=githubactions&logoColor=white)](https://github.com/fastiuk/loe-energy-monitor/actions/workflows/tests.yml)
+[![LOE API](https://img.shields.io/github/actions/workflow/status/fastiuk/loe-energy-monitor/live.yml?branch=main&label=LOE%20API&logo=githubactions&logoColor=white)](https://github.com/fastiuk/loe-energy-monitor/actions/workflows/live.yml)
+[![Validate](https://img.shields.io/github/actions/workflow/status/fastiuk/loe-energy-monitor/validate.yml?branch=main&label=HACS%20%2B%20hassfest&logo=homeassistant&logoColor=white)](https://github.com/fastiuk/loe-energy-monitor/actions/workflows/validate.yml)
+[![Build](https://img.shields.io/github/actions/workflow/status/fastiuk/loe-energy-monitor/docker.yml?branch=main&label=build&logo=docker&logoColor=white)](https://github.com/fastiuk/loe-energy-monitor/actions/workflows/docker.yml)
+[![Release](https://img.shields.io/github/v/release/fastiuk/loe-energy-monitor?sort=semver&logo=github&logoColor=white)](https://github.com/fastiuk/loe-energy-monitor/releases)
+[![Docker pulls](https://img.shields.io/docker/pulls/fastiuk/loe-energy-monitor?logo=docker&logoColor=white)](https://hub.docker.com/r/fastiuk/loe-energy-monitor)
+[![Image size](https://img.shields.io/docker/image-size/fastiuk/loe-energy-monitor/latest?logo=docker&logoColor=white)](https://hub.docker.com/r/fastiuk/loe-energy-monitor/tags)
+[![Platform](https://img.shields.io/badge/platform-linux%2Famd64%20%7C%20linux%2Farm64-blue?logo=linux&logoColor=white)](#запуск-власного-бота)
+[![HACS](https://img.shields.io/badge/HACS-custom-41BDF5?logo=homeassistantcommunitystore&logoColor=white)](#home-assistant)
+[![Telegram](https://img.shields.io/badge/Telegram-@loe__grafik__bot-26A5E4?logo=telegram&logoColor=white)](https://t.me/loe_grafik_bot)
+[![License](https://img.shields.io/github/license/fastiuk/loe-energy-monitor)](LICENSE)
+
 Графіки погодинних відключень світла Львівобленерго
 ([poweron.loe.lviv.ua](https://poweron.loe.lviv.ua/)): Telegram-бот і інтеграція для
 [Home Assistant](#home-assistant).
@@ -12,9 +24,11 @@
 - `/today`, `/tomorrow` — графік для своїх груп або для всіх;
 - працює в особистих чатах, групах і каналах.
 
-Дані беруться з того ж неофіційного API, що й сайт: див. [API.md](API.md).
+Готовий бот: **[@loe_grafik_bot](https://t.me/loe_grafik_bot)** — підпишіться й оберіть свою чергу.
+Бот і інтеграція неофіційні; дані беруться з того ж API, що й сайт ЛОЕ (див. [API.md](API.md)).
+Щодня CI перевіряє, що API не змінився (бедж **LOE API**).
 
-## Запуск
+## Запуск власного бота
 
 1. Створіть бота в [@BotFather](https://t.me/BotFather) і скопіюйте токен.
 2. Візьміть [`docker-compose.yml`](docker-compose.yml) і [`.env.example`](.env.example), налаштуйте й запустіть:
@@ -25,8 +39,10 @@
    docker compose up -d
    ```
 
-   Готовий образ `ghcr.io/fastiuk/loe-energy-monitor` публікується для кожної версії
-   (amd64 і arm64, тож підійде й Raspberry Pi). Щоб зібрати з коду: `docker compose up -d --build`.
+   Образ [`fastiuk/loe-energy-monitor`](https://hub.docker.com/r/fastiuk/loe-energy-monitor)
+   (дзеркало: `ghcr.io/fastiuk/loe-energy-monitor`) збирається з кожного коміту в `main` після тестів,
+   для кожної версії й щотижня; amd64 і arm64, тож підійде й Raspberry Pi.
+   Щоб зібрати з коду: `docker compose up -d --build`.
 
 3. Напишіть боту `/start` і оберіть групи.
 
@@ -146,12 +162,20 @@ rm -rf custom_components/loe_outages/loe_core && cp -R src/loe_core custom_compo
 
 | Workflow | Коли | Що робить |
 |---|---|---|
-| `Tests` | кожен push у гілку, PR | тести ядра й бота (Python 3.13) і тести інтеграції HA (Python 3.14) |
+| `Tests` | кожен push, PR, щодня | тести ядра й бота (Python 3.13) і інтеграції HA (Python 3.14); щодня ще й з найновішою версією HA |
+| `LOE API` | push у `main`, щодня | запити до справжнього API ЛОЕ: чи сайт досі бере дані звідти, чи не змінився формат графіка |
 | `Validate` | кожен push, PR, щодня | перевірки HACS і hassfest |
-| `Docker` | тег `v*` або вручну | тести, потім збірка образу для amd64/arm64 і публікація в GHCR |
+| `Docker` | push у `main`, тег `v*`, щотижня | тести, потім образ amd64/arm64 у Docker Hub і GHCR, опис на Docker Hub з README |
+
+Про падіння запланованих запусків GitHub повідомляє листом. Якщо в репозиторії 60 днів не було
+комітів, GitHub вимикає заплановані запуски — їх треба ввімкнути знову у вкладці Actions.
+
+Секрети репозиторію для публікації: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`
+(Personal Access Token Docker Hub з правами Read, Write, Delete — Delete потрібен для оновлення опису).
 
 Випуск версії: оновіть `version` у `pyproject.toml` і `custom_components/loe_outages/manifest.json`,
-закомітьте, створіть тег `vX.Y.Z` і GitHub Release. Образ отримає теги `X.Y.Z`, `X.Y` і `latest`.
+закомітьте, створіть тег `vX.Y.Z` і GitHub Release. Образ отримає теги `X.Y.Z` і `X.Y`
+(`latest` завжди відповідає `main`).
 
 ## Ліцензія
 

@@ -1,7 +1,7 @@
 services:
   bot:
     # `docker compose pull` takes the published image; `docker compose up --build` builds from source.
-    image: ghcr.io/fastiuk/loe-energy-monitor:latest
+    image: fastiuk/loe-energy-monitor:latest
     build: .
     restart: unless-stopped
     env_file: .env

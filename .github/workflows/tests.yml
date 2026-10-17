@@ -4,6 +4,9 @@ on:
   push:
     branches: ["**"]
   pull_request:
+  schedule:
+    - cron: "37 5 * * *"
+  workflow_dispatch:
   workflow_call:
 
 permissions:
@@ -40,4 +43,27 @@ jobs:
       - run: >-
           uv run --isolated --no-project --python 3.14
           --with pytest-homeassistant-custom-component==0.13.373
+          pytest tests/ha -o asyncio_mode=auto
+
+  home-assistant-latest:
+    name: Home Assistant integration (latest HA)
+    # Daily only: tells when a new Home Assistant release breaks the integration,
+    # without blocking pushes or image builds.
+    # (`github.workflow` is the caller's name when the Docker workflow reuses this one.)
+    if: >-
+      github.workflow == 'Tests' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          version: "0.12.24"
+          enable-cache: true
+      - run: >-
+          uv run --isolated --no-project --python 3.14
+          --refresh-package pytest-homeassistant-custom-component
+          --with pytest-homeassistant-custom-component
           pytest tests/ha -o asyncio_mode=auto

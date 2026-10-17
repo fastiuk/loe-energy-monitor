@@ -2,11 +2,23 @@ name: Docker
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
+  schedule:
+    # weekly rebuild: picks up Python and Debian security updates
+    - cron: "41 4 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: docker
+  cancel-in-progress: false
+
+env:
+  DOCKERHUB_IMAGE: fastiuk/loe-energy-monitor
+  GHCR_IMAGE: ghcr.io/fastiuk/loe-energy-monitor
 
 jobs:
   tests:
@@ -27,18 +39,25 @@ jobs:
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
         with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/login-action@v4
+        with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository }}
-          # v1.2.3 → 1.2.3, 1.2 and latest; a manual run on a branch → the branch name.
+          images: |
+            ${{ env.DOCKERHUB_IMAGE }}
+            ${{ env.GHCR_IMAGE }}
+          # main → latest; tag v1.2.3 → 1.2.3 and 1.2
           tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=ref,event=branch
+          flavor: latest=false
       - uses: docker/build-push-action@v7
         with:
           context: .
@@ -48,3 +67,23 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+  dockerhub-readme:
+    name: Docker Hub description
+    needs: image
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: peter-evans/dockerhub-description@v5
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.DOCKERHUB_IMAGE }}
+          short-description: Графіки відключень світла Львівобленерго — Telegram-бот з нагадуваннями
+          readme-filepath: ./README.md
+          enable-url-completion: true

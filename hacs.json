@@ -1,5 +1,6 @@
 {
   "name": "LOE Outages (Львівобленерго)",
+  "country": "UA",
   "homeassistant": "2025.8.0",
   "render_readme": true
 }

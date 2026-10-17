@@ -136,3 +136,7 @@ uv run --isolated --no-project --python 3.14 \
 ```bash
 rm -rf custom_components/loe_outages/loe_core && cp -R src/loe_core custom_components/loe_outages/loe_core
 ```
+
+## Ліцензія
+
+[MIT](LICENSE)

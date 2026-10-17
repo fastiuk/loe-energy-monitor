@@ -1,8 +1,9 @@
 [project]
 name = "loe-energy-monitor"
-version = "0.1.0"
+version = "0.1.1"
 description = "Моніторинг графіків погодинних відключень Львівобленерго: ядро + Telegram-бот"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "aiogram>=3.22,<4",

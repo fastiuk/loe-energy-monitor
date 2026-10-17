@@ -17,16 +17,21 @@
 ## Запуск
 
 1. Створіть бота в [@BotFather](https://t.me/BotFather) і скопіюйте токен.
-2. Налаштуйте й запустіть:
+2. Візьміть [`docker-compose.yml`](docker-compose.yml) і [`.env.example`](.env.example), налаштуйте й запустіть:
 
    ```bash
    cp .env.example .env   # вкажіть BOT_TOKEN
-   docker compose up -d --build
+   docker compose pull
+   docker compose up -d
    ```
+
+   Готовий образ `ghcr.io/fastiuk/loe-energy-monitor` публікується для кожної версії
+   (amd64 і arm64, тож підійде й Raspberry Pi). Щоб зібрати з коду: `docker compose up -d --build`.
 
 3. Напишіть боту `/start` і оберіть групи.
 
 База (підписки, останній графік) зберігається в томі `bot-data`.
+Оновлення: `docker compose pull && docker compose up -d`.
 
 ### У групі або каналі
 
@@ -136,6 +141,17 @@ uv run --isolated --no-project --python 3.14 \
 ```bash
 rm -rf custom_components/loe_outages/loe_core && cp -R src/loe_core custom_components/loe_outages/loe_core
 ```
+
+### CI
+
+| Workflow | Коли | Що робить |
+|---|---|---|
+| `Tests` | кожен push у гілку, PR | тести ядра й бота (Python 3.13) і тести інтеграції HA (Python 3.14) |
+| `Validate` | кожен push, PR, щодня | перевірки HACS і hassfest |
+| `Docker` | тег `v*` або вручну | тести, потім збірка образу для amd64/arm64 і публікація в GHCR |
+
+Випуск версії: оновіть `version` у `pyproject.toml` і `custom_components/loe_outages/manifest.json`,
+закомітьте, створіть тег `vX.Y.Z` і GitHub Release. Образ отримає теги `X.Y.Z`, `X.Y` і `latest`.
 
 ## Ліцензія
 

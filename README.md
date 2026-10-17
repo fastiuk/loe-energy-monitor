@@ -3,85 +3,26 @@
 [![Tests](https://img.shields.io/github/actions/workflow/status/fastiuk/loe-energy-monitor/tests.yml?branch=main&label=tests&logo=githubactions&logoColor=white)](https://github.com/fastiuk/loe-energy-monitor/actions/workflows/tests.yml)
 [![LOE API](https://img.shields.io/github/actions/workflow/status/fastiuk/loe-energy-monitor/live.yml?branch=main&label=LOE%20API&logo=githubactions&logoColor=white)](https://github.com/fastiuk/loe-energy-monitor/actions/workflows/live.yml)
 [![Validate](https://img.shields.io/github/actions/workflow/status/fastiuk/loe-energy-monitor/validate.yml?branch=main&label=HACS%20%2B%20hassfest&logo=homeassistant&logoColor=white)](https://github.com/fastiuk/loe-energy-monitor/actions/workflows/validate.yml)
-[![Build](https://img.shields.io/github/actions/workflow/status/fastiuk/loe-energy-monitor/docker.yml?branch=main&label=build&logo=docker&logoColor=white)](https://github.com/fastiuk/loe-energy-monitor/actions/workflows/docker.yml)
 [![Release](https://img.shields.io/github/v/release/fastiuk/loe-energy-monitor?sort=semver&logo=github&logoColor=white)](https://github.com/fastiuk/loe-energy-monitor/releases)
-[![Docker pulls](https://img.shields.io/docker/pulls/fastiuk/loe-energy-monitor?logo=docker&logoColor=white)](https://hub.docker.com/r/fastiuk/loe-energy-monitor)
-[![Image size](https://img.shields.io/docker/image-size/fastiuk/loe-energy-monitor/latest?logo=docker&logoColor=white)](https://hub.docker.com/r/fastiuk/loe-energy-monitor/tags)
-[![Platform](https://img.shields.io/badge/platform-linux%2Famd64%20%7C%20linux%2Farm64-blue?logo=linux&logoColor=white)](#запуск-власного-бота)
 [![HACS](https://img.shields.io/badge/HACS-custom-41BDF5?logo=homeassistantcommunitystore&logoColor=white)](#home-assistant)
 [![Telegram](https://img.shields.io/badge/Telegram-@loe__grafik__bot-26A5E4?logo=telegram&logoColor=white)](https://t.me/loe_grafik_bot)
 [![License](https://img.shields.io/github/license/fastiuk/loe-energy-monitor)](LICENSE)
 
 Графіки погодинних відключень світла Львівобленерго
-([poweron.loe.lviv.ua](https://poweron.loe.lviv.ua/)): Telegram-бот і інтеграція для
-[Home Assistant](#home-assistant).
+([poweron.loe.lviv.ua](https://poweron.loe.lviv.ua/)): інтеграція для [Home Assistant](#home-assistant)
+і Python-бібліотека, що завантажує й розбирає графіки. Проєкт неофіційний.
 
-**Telegram-бот:**
+## Telegram-бот
+
+**[@loe_grafik_bot](https://t.me/loe_grafik_bot)** — неофіційний бот на тих самих даних:
 
 - підписка на одну чи кілька груп: 1.1, 1.2, …, 6.2;
 - повідомлення, коли опублікували графік на завтра або змінили поточний (видно, що було і що стало);
-- нагадування за N хвилин до вимкнення й до увімкнення світла (вибір: 5–60 хв або вимкнено);
+- нагадування перед вимкненням і увімкненням світла (за 5–60 хв або без нагадувань);
 - `/today`, `/tomorrow` — графік для своїх груп або для всіх;
 - працює в особистих чатах, групах і каналах.
 
-Готовий бот: **[@loe_grafik_bot](https://t.me/loe_grafik_bot)** — підпишіться й оберіть свою чергу.
-Бот і інтеграція неофіційні; дані беруться з того ж API, що й сайт ЛОЕ (див. [API.md](API.md)).
-Щодня CI перевіряє, що API не змінився (бедж **LOE API**).
-
-## Запуск власного бота
-
-1. Створіть бота в [@BotFather](https://t.me/BotFather) і скопіюйте токен.
-2. Візьміть [`docker-compose.yml`](docker-compose.yml) і [`.env.example`](.env.example), налаштуйте й запустіть:
-
-   ```bash
-   cp .env.example .env   # вкажіть BOT_TOKEN
-   docker compose pull
-   docker compose up -d
-   ```
-
-   Образ [`fastiuk/loe-energy-monitor`](https://hub.docker.com/r/fastiuk/loe-energy-monitor)
-   (дзеркало: `ghcr.io/fastiuk/loe-energy-monitor`) збирається з кожного коміту в `main` після тестів,
-   для кожної версії й щотижня; amd64 і arm64, тож підійде й Raspberry Pi.
-   Щоб зібрати з коду: `docker compose up -d --build`.
-
-3. Напишіть боту `/start` і оберіть групи.
-
-База (підписки, останній графік) зберігається в томі `bot-data`.
-Оновлення: `docker compose pull && docker compose up -d`.
-
-### У групі або каналі
-
-Бот може писати в спільний чат замість особистих повідомлень:
-
-- **Група:** додайте бота — він сам надішле вибір груп. Обирати можуть лише адміністратори.
-- **Канал:** додайте бота адміністратором з правом публікації й опублікуйте в каналі `/start`.
-  Після налаштування службові дописи можна видалити.
-
-## Команди
-
-| Команда | |
-|---|---|
-| `/start`, `/groups` | обрати групи |
-| `/today`, `/tomorrow` | графік на сьогодні / завтра |
-| `/reminder` | за скільки хвилин нагадувати |
-| `/stop` | скасувати підписку |
-
-## Налаштування
-
-| Змінна | За замовчуванням | |
-|---|---|---|
-| `BOT_TOKEN` | — | токен бота, обовʼязково |
-| `POLL_INTERVAL` | `180` | як часто перевіряти графік, секунд (мінімум 60) |
-| `DEFAULT_REMINDER` | `15` | нагадування для нових чатів, хвилин (`0` — вимкнено) |
-| `DB_PATH` | `/data/bot.db` | файл SQLite |
-| `LOG_LEVEL` | `INFO` | |
-
-## Як це працює
-
-Кожні `POLL_INTERVAL` секунд бот завантажує графік, порівнює з попереднім і повідомляє лише
-про групи, що змінилися. Під час першого запуску він тільки запамʼятовує поточний графік.
-Якщо сайт віддає недоредагований графік (частина груп зникла), ці групи не вважаються зміненими.
-Відключення через північ (22:00–24:00 і 00:00–02:00 наступного дня) вважається одним.
+Відкрийте бота, натисніть **Start** і оберіть свою чергу.
 
 ## Home Assistant
 
@@ -127,11 +68,46 @@ automation:
           entity_id: switch.powerbank_charger
 ```
 
+## Дані
+
+Графіки беруться з того ж неофіційного API, що й сайт ЛОЕ (див. [API.md](API.md)).
+Щодня CI робить запити до справжнього API й перевіряє, що сайт досі бере дані звідти і що формат
+графіка не змінився — стан видно на беджі **LOE API**.
+
+- Відключення через північ (22:00–24:00 і 00:00–02:00 наступного дня) вважається одним.
+- Якщо сайт віддає недоредагований графік (частина груп зникла), ці групи беруться з попередньої
+  версії і не вважаються зміненими.
+- Cloudflare кешує відповідь API до двох годин; клієнт щоразу просить свіжу копію.
+
+## Бібліотека `loe_core`
+
+```bash
+pip install "loe-energy-monitor @ git+https://github.com/fastiuk/loe-energy-monitor@v0.2.0"
+```
+
+```python
+import asyncio
+
+import aiohttp
+from loe_core import LoeClient, current_outage, next_outage, now_kyiv
+
+
+async def main() -> None:
+    async with aiohttp.ClientSession() as session:
+        schedules = await LoeClient(session).fetch_schedule()  # {date: DaySchedule}
+    days, now = list(schedules.values()), now_kyiv()
+    print("зараз:", current_outage(days, "4.2", now))
+    print("наступне:", next_outage(days, "4.2", now))
+
+
+asyncio.run(main())
+```
+
+Ще є `diff_schedules` і `merge_schedules`, щоб знаходити зміни між двома завантаженнями.
+
 ## Структура
 
-- `src/loe_core` — завантаження та розбір графіка, порівняння версій; не залежить ні від Telegram,
-  ні від Home Assistant;
-- `src/loe_bot` — Telegram-бот (aiogram 3, SQLite);
+- `src/loe_core` — завантаження та розбір графіка, порівняння версій;
 - `custom_components/loe_outages` — інтеграція для Home Assistant з власною копією `loe_core`
   (тест `tests/test_vendored_core.py` стежить, щоб копія не відставала).
 
@@ -140,7 +116,7 @@ automation:
 ```bash
 uv sync
 uv run pytest
-BOT_TOKEN=... uv run loe-bot
+LOE_LIVE=1 uv run pytest tests/test_live_api.py   # запити до справжнього API
 ```
 
 Тести Home Assistant запускаються в окремому середовищі (HA вимагає Python 3.14 і свої версії
@@ -162,20 +138,15 @@ rm -rf custom_components/loe_outages/loe_core && cp -R src/loe_core custom_compo
 
 | Workflow | Коли | Що робить |
 |---|---|---|
-| `Tests` | кожен push, PR, щодня | тести ядра й бота (Python 3.13) і інтеграції HA (Python 3.14); щодня ще й з найновішою версією HA |
+| `Tests` | кожен push, PR, щодня | тести ядра (Python 3.13) і інтеграції HA (Python 3.14); щодня ще й з найновішою версією HA |
 | `LOE API` | push у `main`, щодня | запити до справжнього API ЛОЕ: чи сайт досі бере дані звідти, чи не змінився формат графіка |
 | `Validate` | кожен push, PR, щодня | перевірки HACS і hassfest |
-| `Docker` | push у `main`, тег `v*`, щотижня | тести, потім образ amd64/arm64 у Docker Hub і GHCR, опис на Docker Hub з README |
 
 Про падіння запланованих запусків GitHub повідомляє листом. Якщо в репозиторії 60 днів не було
 комітів, GitHub вимикає заплановані запуски — їх треба ввімкнути знову у вкладці Actions.
 
-Секрети репозиторію для публікації: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`
-(Personal Access Token Docker Hub з правами Read, Write, Delete — Delete потрібен для оновлення опису).
-
 Випуск версії: оновіть `version` у `pyproject.toml` і `custom_components/loe_outages/manifest.json`,
-закомітьте, створіть тег `vX.Y.Z` і GitHub Release. Образ отримає теги `X.Y.Z` і `X.Y`
-(`latest` завжди відповідає `main`).
+закомітьте, створіть тег `vX.Y.Z` і GitHub Release.
 
 ## Ліцензія
 

@@ -7,14 +7,13 @@ on:
   schedule:
     - cron: "37 5 * * *"
   workflow_dispatch:
-  workflow_call:
 
 permissions:
   contents: read
 
 jobs:
-  core-bot:
-    name: Core and bot
+  core:
+    name: Core
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -48,11 +47,8 @@ jobs:
   home-assistant-latest:
     name: Home Assistant integration (latest HA)
     # Daily only: tells when a new Home Assistant release breaks the integration,
-    # without blocking pushes or image builds.
-    # (`github.workflow` is the caller's name when the Docker workflow reuses this one.)
-    if: >-
-      github.workflow == 'Tests' &&
-      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    # without blocking pushes.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

@@ -166,3 +166,15 @@ def test_config_from_env():
     config = Config.from_env({"BOT_TOKEN": "x", "POLL_INTERVAL": "5", "LOG_LEVEL": "debug"})
     assert config.poll_interval == 60  # clamped to the minimum
     assert config.default_reminder == 15 and config.log_level == "DEBUG"
+
+
+def test_late_button_press_is_not_an_error():
+    from aiogram.exceptions import TelegramBadRequest
+
+    from loe_bot.handlers import _answer
+
+    class ExpiredQuery:
+        async def answer(self, *args, **kwargs):
+            raise TelegramBadRequest(method=None, message="Bad Request: query is too old")
+
+    asyncio.run(_answer(ExpiredQuery()))  # must not raise

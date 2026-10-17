@@ -98,6 +98,13 @@ async def can_manage(
     return member.status in ADMIN_STATUSES
 
 
+async def _answer(query: CallbackQuery, text: str | None = None, *, alert: bool = False) -> None:
+    # A button press handled late (e.g. the bot was offline) can no longer be answered;
+    # its action is still applied, only the button's loading state stays a bit longer.
+    with suppress(TelegramBadRequest):
+        await query.answer(text, show_alert=alert)
+
+
 async def _edit(message: Message, text: str) -> None:
     with suppress(TelegramBadRequest):  # "message is not modified" on double clicks
         await message.edit_text(text)
@@ -171,10 +178,10 @@ async def on_group(
 ) -> None:
     message = query.message
     if not isinstance(message, Message):
-        await query.answer()
+        await _answer(query)
         return
     if not await can_manage(bot, message.chat, query.from_user):
-        await query.answer(NOT_ADMIN, show_alert=True)
+        await _answer(query, NOT_ADMIN, alert=True)
         return
     chat_id = message.chat.id
     db.ensure_chat(chat_id, config.default_reminder)
@@ -184,7 +191,7 @@ async def on_group(
         selected = db.toggle_group(chat_id, callback_data.group)
         with suppress(TelegramBadRequest):
             await message.edit_reply_markup(reply_markup=groups_keyboard(selected))
-    await query.answer()
+    await _answer(query)
 
 
 @router.callback_query(ReminderCallback.filter())
@@ -193,15 +200,15 @@ async def on_reminder(
 ) -> None:
     message = query.message
     if not isinstance(message, Message) or callback_data.minutes not in REMINDER_OPTIONS:
-        await query.answer()
+        await _answer(query)
         return
     if not await can_manage(bot, message.chat, query.from_user):
-        await query.answer(NOT_ADMIN, show_alert=True)
+        await _answer(query, NOT_ADMIN, alert=True)
         return
     db.ensure_chat(message.chat.id, config.default_reminder)
     db.set_reminder(message.chat.id, callback_data.minutes)
     await _edit(message, f"⏰ Нагадування: {format_reminder_setting(callback_data.minutes)}")
-    await query.answer()
+    await _answer(query)
 
 
 @router.callback_query(DayCallback.filter())
@@ -212,7 +219,7 @@ async def on_all_groups(
         day = date.fromisoformat(callback_data.day)
         text, _ = _day_view(db, monitor, query.message.chat.id, day, all_groups=True)
         await _edit(query.message, text)
-    await query.answer()
+    await _answer(query)
 
 
 @router.my_chat_member()

@@ -1,0 +1,28 @@
+[project]
+name = "loe-energy-monitor"
+version = "0.1.0"
+description = "Моніторинг графіків погодинних відключень Львівобленерго: ядро + Telegram-бот"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiogram>=3.22,<4",
+    "aiohttp>=3.9",
+    "tzdata>=2024.1",
+]
+
+[project.scripts]
+loe-bot = "loe_bot.__main__:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/loe_core", "src/loe_bot"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]

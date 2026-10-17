@@ -1,0 +1,31 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "outage": {
+        "default": "mdi:transmission-tower",
+        "state": {
+          "on": "mdi:transmission-tower-off"
+        }
+      }
+    },
+    "calendar": {
+      "schedule": {
+        "default": "mdi:calendar-clock"
+      }
+    },
+    "sensor": {
+      "next_outage": {
+        "default": "mdi:power-plug-off"
+      },
+      "power_back": {
+        "default": "mdi:power-plug"
+      },
+      "outage_time_today": {
+        "default": "mdi:timer-outline"
+      },
+      "updated": {
+        "default": "mdi:update"
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+services:
+  bot:
+    build: .
+    image: loe-energy-monitor
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - bot-data:/data
+
+volumes:
+  bot-data:

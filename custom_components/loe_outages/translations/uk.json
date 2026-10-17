@@ -1,0 +1,65 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Графік відключень ЛОЕ",
+        "description": "Оберіть свою групу (чергу). Її можна знайти за адресою на poweron.loe.lviv.ua.",
+        "data": {
+          "group": "Група відключень"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Не вдалося завантажити графік з сайту ЛОЕ. Спробуйте пізніше."
+    },
+    "abort": {
+      "already_configured": "Цю групу вже додано."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Інтервал оновлення"
+        },
+        "data_description": {
+          "scan_interval": "Як часто перевіряти графік, у хвилинах."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "outage": {
+        "name": "Відключення зараз",
+        "state_attributes": {
+          "today": {
+            "name": "Сьогодні"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          }
+        }
+      }
+    },
+    "calendar": {
+      "schedule": {
+        "name": "Графік відключень"
+      }
+    },
+    "sensor": {
+      "next_outage": {
+        "name": "Наступне відключення"
+      },
+      "power_back": {
+        "name": "Увімкнення світла"
+      },
+      "outage_time_today": {
+        "name": "Без світла сьогодні"
+      },
+      "updated": {
+        "name": "Графік оновлено"
+      }
+    }
+  }
+}

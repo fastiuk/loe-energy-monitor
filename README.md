@@ -80,7 +80,8 @@
 
 ### Встановлення через HACS
 
-1. HACS → ⋮ → **Custom repositories** → URL цього репозиторію, тип **Integration**.
+1. HACS → ⋮ → **Custom repositories** → `https://github.com/fastiuk/loe-energy-monitor`,
+   тип **Integration**.
 2. Знайдіть **LOE Outages** у HACS, встановіть і перезапустіть Home Assistant.
 3. **Налаштування → Пристрої та служби → Додати інтеграцію → LOE Outages**, оберіть групу.
    Для кількох груп додайте інтеграцію кілька разів.

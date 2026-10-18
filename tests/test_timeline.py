@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from conftest import kyiv
 
@@ -10,6 +10,7 @@ from ua_outages.timeline import (
     group_outages,
     merge_schedules,
     next_outage,
+    trim_schedules,
 )
 
 DAY = date(2026, 10, 17)
@@ -77,3 +78,14 @@ def test_merge_keeps_stored_days_and_groups():
     assert list(merged) == [DAY]
     assert merged[DAY].groups["1.1"] == (off(DAY, 8, 9),)
     assert merged[DAY].groups["1.2"] == (off(DAY, 10, 12),)
+
+
+def test_schedules_are_trimmed_to_known_days_and_groups():
+    """A broken or hostile source can't make anyone keep years of days or invented groups."""
+    days = {DAY + timedelta(days=n): schedule(DAY + timedelta(days=n), {"1.1": (), "evil": ()}) for n in range(-3, 400)}
+    trimmed = trim_schedules(days, today=DAY, groups=["1.1", "1.2"])
+    assert list(trimmed) == [DAY, TOMORROW, DAY + timedelta(days=2)]
+    assert all(list(s.groups) == ["1.1"] for s in trimmed.values())
+    assert list(trim_schedules(days, today=DAY)[DAY].groups) == ["1.1", "evil"]
+    merged = merge_schedules(days, days, since=DAY)
+    assert list(merged) == [DAY, TOMORROW, DAY + timedelta(days=2)]

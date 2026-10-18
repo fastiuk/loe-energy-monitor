@@ -20,7 +20,9 @@ async def get_hub(hass: HomeAssistant) -> SourceHub:
     if HUB not in hass.data:
         # Reads CA bundles from disk: never on the event loop. Cached for every later request.
         await hass.async_add_executor_job(ssl_context)
-        hass.data[HUB] = SourceHub(hass)
+        # Checked again: entries set up together all waited above, and they must share one hub.
+        if HUB not in hass.data:
+            hass.data[HUB] = SourceHub(hass)
     return hass.data[HUB]
 
 

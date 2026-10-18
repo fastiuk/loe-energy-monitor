@@ -12,6 +12,7 @@ today again, so the date in ``gsv_t`` decides which day a page is.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from datetime import date, datetime, time
 
@@ -71,7 +72,7 @@ class Chernivtsi(Provider):
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         schedules = {}
         for url in (URL, URL + "?next"):
-            schedule = parse((await http.get(url)).text(), now)
+            schedule = await asyncio.to_thread(parse, (await http.get(url)).text(), now)
             if schedule is not None and schedule.day >= now.date():
                 schedules[schedule.day] = schedule
         return dict(sorted(schedules.items()))

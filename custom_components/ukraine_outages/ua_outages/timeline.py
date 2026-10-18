@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
-from datetime import date, datetime
+from dataclasses import dataclass, replace
+from datetime import date, datetime, timedelta
 from typing import Literal
 
 from .models import DaySchedule, Outage, merge_outages
@@ -88,17 +88,43 @@ def diff_schedules(
     return changes
 
 
+#: Days after today a schedule may cover. Sources publish today and tomorrow; anything far
+#: beyond is a broken or hostile answer and would only pile up in memory.
+DAYS_AHEAD = 2
+
+
+def trim_schedules(
+    schedules: Mapping[date, DaySchedule], *, today: date, groups: Iterable[str] | None = None
+) -> dict[date, DaySchedule]:
+    """Only days from ``today`` to ``DAYS_AHEAD`` after it and, if given, only ``groups``."""
+    last = today + timedelta(days=DAYS_AHEAD)
+    known = None if groups is None else frozenset(groups)
+    trimmed = {}
+    for day, schedule in schedules.items():
+        if not today <= day <= last:
+            continue
+        if known is not None:
+            schedule = replace(
+                schedule,
+                groups={g: o for g, o in schedule.groups.items() if g in known},
+                unknown={g: t for g, t in schedule.unknown.items() if g in known},
+            )
+        trimmed[day] = schedule
+    return dict(sorted(trimmed.items()))
+
+
 def merge_schedules(
     old: Mapping[date, DaySchedule], new: Mapping[date, DaySchedule], *, since: date
 ) -> dict[date, DaySchedule]:
-    """Combine stored and fresh schedules, dropping days before ``since``.
+    """Combine stored and fresh schedules, keeping days from ``since`` to ``DAYS_AHEAD`` after it.
 
     Days and groups the fresh fetch lacks are kept from the stored version, so a
     temporarily empty page neither wipes reminders nor re-announces the schedule.
     """
-    merged = {day: s for day, s in old.items() if day >= since}
+    last = since + timedelta(days=DAYS_AHEAD)
+    merged = {day: s for day, s in old.items() if since <= day <= last}
     for day, schedule in new.items():
-        if day < since:
+        if not since <= day <= last:
             continue
         merged[day] = schedule.with_missing_from(old[day]) if day in old else schedule
     return dict(sorted(merged.items()))

@@ -13,6 +13,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -49,6 +50,12 @@ OCCUPIED = Status("тимчасово окупована — буде після
 def ordered() -> list[Operator]:
     """Operators in the order of regions (Kyiv, Crimea, oblasts, Sevastopol)."""
     return [OPERATORS_BY_ID[o] for region in REGIONS for o in region.operators]
+
+
+def cell(text: str, limit: int = 300) -> str:
+    """Error text from a source, shown as-is in the Markdown job summary (no links, no extra columns)."""
+    text = " ".join(text.split())[:limit]
+    return re.sub(r"([\\`*_{}\[\]()<>#+!|~&])", r"\\\1", text)
 
 
 def label(op: Operator) -> str:
@@ -127,7 +134,7 @@ async def run(out: Path, *, on_ci: bool) -> bool:
                 "sources": [{"source": s.name, "result": kind, "detail": detail} for s, (kind, detail) in zip(op.sources, results)],
             }
             details = "; ".join(f"{s.name}: {kind} ({detail})" for s, (kind, detail) in zip(op.sources, results))
-            rows.append(f"| {label(op)} | {op.name} | {status.message} | {details or op.note or ''} |")
+            rows.append(f"| {label(op)} | {cell(op.name)} | {status.message} | {cell(details or op.note or '', 1000)} |")
     (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
     table = "\n".join(["| Область | Оператор | Статус | Джерела |", "|---|---|---|---|", *rows])
     print(table)

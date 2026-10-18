@@ -135,6 +135,12 @@ def test_poltava():
     assert sorted(s.groups) == sorted(STANDARD_GROUPS)
     assert spans(s, "1.1")[:3] == [("00:00", "00:30", True), ("10:00", "11:30", False), ("11:30", "12:00", True)]
     assert poltava.parse("", OCT18) is None
+    # A subqueue cell must be 1 or 2: anything else would become a made-up group.
+    page = fixture_text("poltava_2026-10-17.html")
+    marker = 'turnoff-scheduleui-table-subqueue">'
+    at = page.index(marker) + len(marker)
+    forged = poltava.parse(page[:at] + "1 <b>x</b>" + page[page.index("<", at) :], OCT17)
+    assert sorted(forged.groups) == sorted(set(STANDARD_GROUPS) - {"1.1"})
 
 
 def test_zhytomyr():
@@ -164,6 +170,12 @@ def test_cherkasy():
     posts = cherkasy.pick_posts(fixture_json("cherkasy_posts.json"), OCT17)
     assert posts[OCT18][0].endswith("na-18-zhovtnya-3")  # the newest of four updates
     assert posts[OCT17][0].endswith("na-17-zhovtnya-2")
+    # Each picked post costs a request: days past tomorrow are never followed.
+    far = [
+        {"title": f"Графік погодинних відключень на {d} жовтня", "slug": f"post-{d}", "publishedAt": "2026-10-17T10:00:00"}
+        for d in range(17, 32)
+    ]
+    assert sorted(cherkasy.pick_posts({"data": far}, OCT17)) == [OCT17, OCT18]
     s = cherkasy.parse_post(fixture_json("cherkasy_post.json"), OCT17, kyiv(OCT17, 2, 20))
     assert sorted(s.groups) == sorted(STANDARD_GROUPS)
     assert spans(s, "1.1") == [("10:00", "12:00", False), ("16:00", "18:00", False), ("20:00", "22:00", False)]

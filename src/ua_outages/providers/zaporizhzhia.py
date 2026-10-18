@@ -15,6 +15,7 @@ means the groups not listed have no outages.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from datetime import date, datetime, timedelta
 
@@ -79,4 +80,4 @@ class Zaporizhzhia(Provider):
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         resp = await http.get(URL)
-        return parse(resp.text(), now.date())
+        return await asyncio.to_thread(parse, resp.text(), now.date())

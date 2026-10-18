@@ -38,13 +38,27 @@ _ID_RE = re.compile(r"[0-9]{1,12}")
 _GROUP_RE = re.compile(r"\s{0,3}([0-9]{1,2})\s{0,3}[.,/-]\s{0,3}([0-9]{1,2})\s{0,3}")
 
 
+#: Unicode categories that never belong in a street name or a typed query: controls and line
+#: or paragraph separators become spaces; format characters (bidi marks, zero-width and tag
+#: characters that can smuggle hidden text), private-use, surrogates and unassigned go.
+_AS_SPACE = frozenset({"Cc", "Zl", "Zp"})
+_DROPPED = frozenset({"Cf", "Co", "Cs", "Cn"})
+
+
+def _visible(text: str) -> str:
+    return "".join(
+        " " if (category := unicodedata.category(c)) in _AS_SPACE else "" if category in _DROPPED else c
+        for c in text
+    )
+
+
 def clean_label(value: Any, limit: int = MAX_LABEL) -> str | None:
     """Directory text fit to show: one line, visible characters only, at most ``limit``."""
     if isinstance(value, int) and not isinstance(value, bool):
         value = str(value)
     if not isinstance(value, str):
         return None
-    text = _SPACE_RE.sub(" ", _INVISIBLE_RE.sub(" ", value[: limit * 4])).strip()
+    text = _SPACE_RE.sub(" ", _visible(_INVISIBLE_RE.sub(" ", value[: limit * 4]))).strip()
     if len(text) > limit:
         text = text[: limit - 1].rstrip() + "…"
     return text or None
@@ -52,7 +66,7 @@ def clean_label(value: Any, limit: int = MAX_LABEL) -> str | None:
 
 def clean_query(text: str) -> str:
     """What the user typed, as one line of at most ``MAX_QUERY`` visible characters."""
-    return _SPACE_RE.sub(" ", _INVISIBLE_RE.sub(" ", text[: MAX_QUERY * 4])).strip()[:MAX_QUERY]
+    return _SPACE_RE.sub(" ", _visible(_INVISIBLE_RE.sub(" ", text[: MAX_QUERY * 4]))).strip()[:MAX_QUERY]
 
 
 def numeric_id(value: Any) -> str | None:

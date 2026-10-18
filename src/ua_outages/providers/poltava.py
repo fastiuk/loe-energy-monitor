@@ -15,6 +15,7 @@ lists each next level as ``[{"instance_id", "instance_name"}]``, and
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from collections.abc import Sequence
@@ -54,7 +55,9 @@ def parse(fragment: str, day: date) -> DaySchedule | None:
             queue, cells = m[1], cells[1:]
         if not cells or "turnoff-scheduleui-table-subqueue" not in cells[0].classes or queue is None:
             continue
-        group = f"{queue}.{cells[0].text()}"
+        if (subqueue := cells[0].text()) not in ("1", "2"):
+            continue
+        group = f"{queue}.{subqueue}"
         states = [next((CELLS[c] for c in cell.classes if c in CELLS), None) for cell in cells[1:]]
         if len(states) != 48 or None in states:
             unknown[group] = "Нерозпізнаний графік"
@@ -75,7 +78,7 @@ class Poltava(Provider):
         for day in (now.date(), now.date() + timedelta(days=1)):
             seldate = json.dumps({"date_in": f"{day:%d-%m-%Y}"})
             resp = await http.post(URL, data={"seldate": seldate})
-            if (schedule := parse(resp.text(), day)) is not None:
+            if (schedule := await asyncio.to_thread(parse, resp.text(), day)) is not None:
                 schedules[day] = schedule
         return schedules
 

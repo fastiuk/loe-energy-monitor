@@ -17,6 +17,7 @@ fetched once and cached; Cloudflare answers HTTP 429 to quick series of requests
 
 from __future__ import annotations
 
+import asyncio
 import bisect
 import logging
 import re
@@ -153,7 +154,7 @@ class Loe(Provider):
             "_": str(int(time.time())),
         }
         resp = await http.get(SCHEDULE_URL, params=params, headers={"Accept": "application/ld+json"})
-        return parse_menu(resp.json())
+        return await asyncio.to_thread(parse_menu, resp.json())
 
 
 def parse_cities(payload: Any) -> list[Choice]:

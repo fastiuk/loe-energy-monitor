@@ -18,7 +18,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .const import SHARED_FETCH_TTL
-from .ua_outages import AddressSource, DaySchedule, FetchError, Fetcher, Operator, now_kyiv
+from .ua_outages import AddressSource, DaySchedule, FetchError, Fetcher, Operator, now_kyiv, trim_schedules
 from .ua_outages.http import CachingFetcher, ResponseCache, Throttle, redact, ssl_context
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,6 +27,9 @@ _LOGGER = logging.getLogger(__name__)
 #: cached briefly so going back a step costs nothing.
 LOOKUP_CACHE_TTL = 600
 LOOKUP_CACHE_BYTES = 8 * 1024 * 1024
+#: One source's whole fetch (some ask for several pages), so a source that answers slowly
+#: but within each request's timeout can't hold every entry of the operator for long.
+SOURCE_DEADLINE = 90
 
 
 class SourceHub:
@@ -67,13 +70,18 @@ class SourceHub:
             errors = []
             for source in op.sources:
                 http = self.fetcher(source.hosts)
+                now = now_kyiv()
                 try:
-                    if isinstance(source, AddressSource):
-                        if address is None or not source.valid_address(address):
-                            raise FetchError("this entry has no valid address")
-                        result = await source.fetch_address(http, now_kyiv(), address)
-                    else:
-                        result = await source.fetch(http, now_kyiv())
+                    async with asyncio.timeout(SOURCE_DEADLINE):
+                        if isinstance(source, AddressSource):
+                            if address is None or not source.valid_address(address):
+                                raise FetchError("this entry has no valid address")
+                            result = await source.fetch_address(http, now, address)
+                        else:
+                            result = await source.fetch(http, now)
+                except TimeoutError:
+                    errors.append(f"{source.name}: no answer in {SOURCE_DEADLINE} s")
+                    continue
                 except FetchError as err:
                     errors.append(f"{source.name}: {redact(str(err))}")
                     continue
@@ -83,6 +91,8 @@ class SourceHub:
                     continue
                 if errors:
                     _LOGGER.info("%s: used fallback %s (%s)", op.id, source.name, "; ".join(errors))
+                # Only the days and groups that can matter: a broken answer can't pile up.
+                result = trim_schedules(result, today=now.date(), groups=op.groups)
                 self._cache[key] = (time.monotonic(), result)
                 self.last_source[key] = source.name
                 return result

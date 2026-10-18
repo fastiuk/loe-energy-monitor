@@ -164,3 +164,18 @@ async def test_occupied_territories_are_listed_with_a_stub(hass: HomeAssistant, 
         result = await _configure(hass, await _start(hass), {CONF_REGION: region})
         assert result["type"] is FlowResultType.ABORT and result["reason"] == "occupied"
     assert not mock_fetch.called
+
+
+async def test_directory_text_is_shown_literally(hass: HomeAssistant, mock_fetch) -> None:
+    """Labels come from the operator's site: Markdown in them must not become links or images."""
+    hostile = "![x](https://evil.example/t.png) [тут](https://evil.example) **вул.** <img src=x>"
+    options, resolve = _lookup("dtek-kem", [[Choice("1", hostile)], [Choice("2", "1")]], Resolution((), (hostile,)))
+    with options, resolve:
+        result = await _configure(hass, await _start(hass), {CONF_REGION: "kyiv"})
+        result = await _configure(hass, result, {"next_step_id": "address"})
+        result = await _configure(hass, result, {CONF_QUERY: "вул"})
+        chosen = result["description_placeholders"]["chosen"]
+        result = await _configure(hass, result, {CONF_QUERY: "1"})
+    escaped = r"\!\[x\]\(https://evil.example/t.png\) \[тут\]\(https://evil.example\) \*\*вул.\*\* \<img src=x\>"
+    assert chosen == escaped
+    assert result["description_placeholders"] == {"other": escaped}

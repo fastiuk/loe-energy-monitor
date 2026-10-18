@@ -22,6 +22,7 @@ from .timeline import (
     group_events,
     group_outages,
     merge_schedules,
+    trim_schedules,
     next_outage,
 )
 
@@ -54,6 +55,7 @@ __all__ = [
     "group_outages",
     "merge_outages",
     "merge_schedules",
+    "trim_schedules",
     "next_outage",
     "now_kyiv",
     "operator",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import voluptuous as vol
@@ -36,6 +37,15 @@ from .coordinator import scan_minutes
 from .ua_outages import REGIONS, Choice, FetchError, Operator, Region, operator
 from .ua_outages.providers._address import clean_query
 from .ua_outages.registry import REGIONS_BY_ID
+
+
+#: Characters with a meaning in the Markdown HA renders form descriptions with.
+_MARKDOWN_RE = re.compile(r"([\\`*_{}\[\]()<>#+!|~&])")
+
+
+def _md(text: str) -> str:
+    """Text from an operator's directory, shown literally: no links, images or markup."""
+    return _MARKDOWN_RE.sub(r"\\\1", text)
 
 
 def _operators(region: Region) -> list[Operator]:
@@ -156,7 +166,7 @@ class OutagesConfigFlow(ConfigFlow, domain=DOMAIN):
                 **self._placeholders(),
                 "prompt": step.prompt,
                 "example": step.example or "—",
-                "chosen": self._chosen_label() or "—",
+                "chosen": _md(self._chosen_label()) or "—",
                 "number": str(len(self._path) + 1),
                 "steps": str(len(lookup.steps)),
             },
@@ -171,7 +181,7 @@ class OutagesConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="address_pick",
             data_schema=schema,
-            description_placeholders={"count": str(len(self._choices)), "chosen": self._chosen_label() or "—"},
+            description_placeholders={"count": str(len(self._choices)), "chosen": _md(self._chosen_label()) or "—"},
         )
 
     async def _chosen(self, choice: Choice) -> ConfigFlowResult:
@@ -190,7 +200,7 @@ class OutagesConfigFlow(ConfigFlow, domain=DOMAIN):
         groups = tuple(g for g in resolution.groups if g in op.groups)
         if not groups or (op.by_address and not resolution.address):
             return self.async_abort(
-                reason="no_group", description_placeholders={"other": ", ".join(resolution.other) or "—"}
+                reason="no_group", description_placeholders={"other": _md(", ".join(resolution.other)) or "—"}
             )
         self._address = resolution.address if op.by_address else None
         self._address_label = self._chosen_label()

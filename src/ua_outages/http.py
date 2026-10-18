@@ -7,6 +7,7 @@ slow answer must not turn the bot into a proxy or stall it.
 from __future__ import annotations
 
 import asyncio
+import codecs
 import json
 import re
 import ssl
@@ -28,7 +29,10 @@ USER_AGENT = "ukraine-energy-monitor/0.3 (+https://github.com/fastiuk/ukraine-en
 MAX_BYTES = 5 * 1024 * 1024
 #: Never contacted, whatever a source declares: the aggressor's domains, where the occupation
 #: authorities of Crimea and other occupied territories publish ("рф" is "xn--p1ai").
-FORBIDDEN_SUFFIXES = (".ru", ".su", ".xn--p1ai", ".рф")
+FORBIDDEN_SUFFIXES = (
+    ".ru", ".su", ".xn--p1ai", ".рф",
+    ".xn--p1acf", ".рус", ".xn--80adxhks", ".москва", ".moscow", ".tatar", ".xn--d1acj3b", ".дети",
+)  # fmt: skip
 MAX_REDIRECTS = 3
 _REDIRECTS = {301, 302, 303, 307, 308}
 
@@ -38,6 +42,10 @@ def ssl_context() -> ssl.SSLContext:
     """Mozilla's CA set (same on macOS and in the image) plus intermediates some servers omit."""
     context = ssl.create_default_context(cafile=certifi.where())
     context.load_verify_locations(cadata=(files(__package__) / "intermediates.pem").read_text("ascii"))
+    # Python 3.13 trusts any certificate in the store as an anchor (PARTIAL_CHAIN). The bundled
+    # intermediates are there to complete chains, not to be trusted on their own: a chain must
+    # still end at a root from certifi.
+    context.verify_flags &= ~ssl.VERIFY_X509_PARTIAL_CHAIN
     return context
 
 
@@ -58,6 +66,18 @@ def forbidden_host(host: str | None) -> bool:
     return any(name == suffix[1:] or name.endswith(suffix) for suffix in FORBIDDEN_SUFFIXES)
 
 
+#: Charsets a source's Content-Type may select; anything else is read as UTF-8.
+CHARSETS = frozenset({"utf-8", "cp1251", "koi8-u", "iso8859-1", "ascii"})  # codecs.lookup() names
+
+
+def _charset(name: str | None) -> str:
+    try:
+        codec = codecs.lookup(name or "utf-8").name
+    except LookupError:
+        return "utf-8"
+    return codec if codec in CHARSETS else "utf-8"
+
+
 class FetchError(Exception):
     """A source could not be fetched or did not look like what we expect."""
 
@@ -71,7 +91,8 @@ class Response:
     charset: str | None
 
     def text(self, encoding: str | None = None) -> str:
-        return self.body.decode(encoding or self.charset or "utf-8", errors="replace")
+        """The body as text: ``encoding`` if the source knows it, else an allowed charset from the response."""
+        return self.body.decode(_charset(encoding or self.charset), errors="replace")
 
     def json(self) -> Any:
         try:
@@ -92,6 +113,7 @@ class Fetcher:
         max_bytes: int = MAX_BYTES,
         user_agent: str = USER_AGENT,
         schemes: Iterable[str] = ("https",),
+        ports: Iterable[int] = (443,),
         tls: ssl.SSLContext | None = None,
     ) -> None:
         """``tls`` defaults to ``ssl_context()``, which reads CA files: in an event loop that
@@ -100,13 +122,19 @@ class Fetcher:
         self._ssl = tls or ssl_context()
         self._hosts = frozenset(hosts)
         self._schemes = frozenset(schemes)
+        self._ports = frozenset(ports)
         self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._max_bytes = max_bytes
         self._user_agent = user_agent
 
     def allowed(self, url: str | URL) -> bool:
         url = URL(url)
-        return url.scheme in self._schemes and url.host in self._hosts and not forbidden_host(url.host)
+        return (
+            url.scheme in self._schemes
+            and url.host in self._hosts
+            and url.port in self._ports
+            and not forbidden_host(url.host)
+        )
 
     async def get(
         self,
@@ -196,7 +224,11 @@ class Throttle:
         await self._lock.acquire()
         loop = asyncio.get_running_loop()
         if (wait := self._next - loop.time()) > 0:
-            await asyncio.sleep(wait)
+            try:
+                await asyncio.sleep(wait)
+            except BaseException:  # cancelled while waiting: __aexit__ won't run
+                self._lock.release()
+                raise
 
     async def __aexit__(self, *exc: object) -> None:
         assert self._lock is not None
@@ -205,13 +237,22 @@ class Throttle:
 
 
 class ResponseCache:
-    """Successful responses for ``ttl`` seconds, at most ``max_bytes`` of bodies in total (LRU)."""
+    """Successful responses for ``ttl`` seconds, at most ``max_bytes`` in total and ``max_entries`` (LRU).
 
-    def __init__(self, ttl: float, max_bytes: int, clock: Callable[[], float] = time.monotonic) -> None:
+    Each entry counts its body, headers, key and some overhead, so many tiny answers can't
+    grow it past its budget either.
+    """
+
+    OVERHEAD = 1024
+
+    def __init__(
+        self, ttl: float, max_bytes: int, clock: Callable[[], float] = time.monotonic, *, max_entries: int = 5000
+    ) -> None:
         self.ttl = ttl
         self.max_bytes = max_bytes
+        self.max_entries = max_entries
         self._clock = clock
-        self._items: OrderedDict[tuple[Any, ...], tuple[float, Response]] = OrderedDict()
+        self._items: OrderedDict[tuple[Any, ...], tuple[float, Response, int]] = OrderedDict()
         self._bytes = 0
 
     def get(self, key: tuple[Any, ...]) -> Response | None:
@@ -224,19 +265,28 @@ class ResponseCache:
         self._items.move_to_end(key)
         return item[1]
 
+    def _size(self, key: tuple[Any, ...], response: Response) -> int:
+        headers = sum(len(k) + len(v) for k, v in response.headers.items())
+        return len(response.body) + headers + len(repr(key)) + self.OVERHEAD
+
     def put(self, key: tuple[Any, ...], response: Response) -> None:
-        if len(response.body) > self.max_bytes:
+        size = self._size(key, response)
+        if size > self.max_bytes:
             return
         if key in self._items:
             self._drop(key)
-        self._items[key] = (self._clock() + self.ttl, response)
-        self._bytes += len(response.body)
-        while self._bytes > self.max_bytes:
+        now = self._clock()
+        # Expired entries at the old end go first, then the least recently used.
+        while self._items and next(iter(self._items.values()))[0] <= now:
+            self._drop(next(iter(self._items)))
+        self._items[key] = (now + self.ttl, response, size)
+        self._bytes += size
+        while self._bytes > self.max_bytes or len(self._items) > self.max_entries:
             self._drop(next(iter(self._items)))
 
     def _drop(self, key: tuple[Any, ...]) -> None:
-        _, response = self._items.pop(key)
-        self._bytes -= len(response.body)
+        _, _, size = self._items.pop(key)
+        self._bytes -= size
 
 
 class CachingFetcher(Fetcher):

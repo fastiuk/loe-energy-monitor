@@ -1,6 +1,7 @@
 """Sources are untrusted: hostile or broken responses must stay harmless and cheap."""
 
 import asyncio
+import ssl
 import time
 from datetime import date
 
@@ -8,8 +9,11 @@ import aiohttp
 import pytest
 from aiohttp import web
 
-from ua_outages.http import FetchError, Fetcher, forbidden_host
-from ua_outages.providers._html import parse_html
+from multidict import CIMultiDict
+
+from ua_outages.http import FetchError, Fetcher, Response, Throttle, forbidden_host, ssl_context
+from ua_outages.providers import kharkiv
+from ua_outages.providers._html import MAX_NODES, TooManyNodes, parse_html
 from ua_outages.providers._text import MAX_TEXT, html_lines, parse_group_text, parse_intervals
 from ua_outages.providers.loe import _image_url
 
@@ -35,9 +39,20 @@ def _fast(fn, *args, limit: float = 2.0):
     ],
 )
 def test_html_parser_is_linear_and_flat(markup):
-    root = _fast(parse_html, markup)
+    try:
+        root = _fast(parse_html, markup)
+    except TooManyNodes:  # also fine: refused in linear time (_fast would have failed otherwise)
+        return
     _fast(root.text)
     _fast(root.find_all, "td")
+
+
+def test_html_parser_refuses_huge_trees_cheaply():
+    with pytest.raises(TooManyNodes):
+        _fast(parse_html, "<br>" * (MAX_NODES + 1))
+    assert sum(1 for _ in parse_html("<br>" * MAX_NODES).iter()) == MAX_NODES + 1  # plus the root
+    root = parse_html("<td>1</td>" * 1000 + "<td class=x>2</td>")
+    assert root.find("td", cls="x").text() == "2" and root.find("th") is None
 
 
 @pytest.mark.parametrize(
@@ -47,6 +62,9 @@ def test_html_parser_is_linear_and_flat(markup):
         "1.1 1.2 " * 50_000,
         "з 10:00 до " * 30_000,
         "1." * 200_000,
+        "<" + " " * 200_000,  # the block-tag pattern once backtracked over runs of spaces
+        "< /" + " " * 200_000 + "p",
+        "<p" + " " * 200_000,
     ],
 )
 def test_text_parsers_are_linear(text):
@@ -82,7 +100,7 @@ async def _serve(handler, request):
     port = site._server.sockets[0].getsockname()[1]
     try:
         async with aiohttp.ClientSession() as session:
-            fetcher = Fetcher(session, ["127.0.0.1"], schemes=["http"], max_bytes=1024 * 1024)
+            fetcher = Fetcher(session, ["127.0.0.1"], schemes=["http"], ports=[port], max_bytes=1024 * 1024)
             return await request(fetcher, f"http://127.0.0.1:{port}")
     finally:
         await runner.cleanup()
@@ -92,7 +110,12 @@ def test_fetcher_refuses_hosts_it_was_not_given():
     async def run():
         async with aiohttp.ClientSession() as session:
             fetcher = Fetcher(session, ["api.loe.lviv.ua"])
-            for url in ("https://evil.example/", "http://api.loe.lviv.ua/", "file:///etc/passwd"):
+            for url in (
+                "https://evil.example/",
+                "http://api.loe.lviv.ua/",
+                "file:///etc/passwd",
+                "https://api.loe.lviv.ua:8443/",  # a port the operator never uses
+            ):
                 with pytest.raises(FetchError, match="not allowed"):
                     await fetcher.get(url)
 
@@ -143,10 +166,6 @@ def test_fetcher_reports_http_errors_and_bad_json():
 
 
 def test_deeply_nested_json_is_a_fetch_error():
-    from multidict import CIMultiDict
-
-    from ua_outages.http import Response
-
     deep = Response("https://x.invalid/", 200, CIMultiDict(), b"[" * 1_000_000, "utf-8")
     with pytest.raises(FetchError):
         deep.json()
@@ -155,7 +174,20 @@ def test_deeply_nested_json_is_a_fetch_error():
 def test_fetcher_never_contacts_the_aggressors_domains():
     async def run():
         async with aiohttp.ClientSession() as session:
-            hosts = ["krymenergo.ru", "example.su", "xn--80aswg.xn--p1ai", "сайт.рф", "RU", "evil.RU."]
+            hosts = [
+                "krymenergo.ru",
+                "example.su",
+                "xn--80aswg.xn--p1ai",
+                "сайт.рф",
+                "RU",
+                "evil.RU.",
+                "сайт.рус",
+                "x.xn--p1acf",
+                "x.moscow",
+                "x.москва",
+                "x.tatar",
+                "x.дети",
+            ]
             fetcher = Fetcher(session, hosts)
             for host in hosts:
                 with pytest.raises(FetchError, match="not allowed"):
@@ -163,3 +195,68 @@ def test_fetcher_never_contacts_the_aggressors_domains():
 
     asyncio.run(run())
     assert not forbidden_host("api.loe.lviv.ua") and not forbidden_host("rubizhne.example.com")
+
+
+@pytest.mark.parametrize(
+    "feed",
+    [
+        "<item>" * 100_000,  # never closed: one regex retried from every <item>
+        "<item><title>" * 50_000 + "</item>",
+        "<item>" + "<description>" * 50_000 + "</item>",
+    ],
+    ids=["unclosed-items", "unclosed-titles", "unclosed-descriptions"],
+)
+def test_kharkiv_feed_is_linear(feed):
+    assert _fast(kharkiv.parse_feed, "<rss>" + feed, DAY) == {}
+
+
+@pytest.mark.parametrize("charset", ["punycode", "idna", "utf-7", "rot13", "no-such-charset", "zlib"])
+def test_responses_decode_only_with_known_charsets(charset):
+    """The server's Content-Type picked the decoder: punycode is quadratic, others raised."""
+    body = "Графік".encode() + b"-" * 200_000
+    resp = Response("https://x.invalid/", 200, CIMultiDict(), body, charset)
+    assert _fast(resp.text).startswith("Графік")
+    assert Response("https://x.invalid/", 200, CIMultiDict(), "Графік".encode("cp1251"), "windows-1251").text() == "Графік"
+
+
+def test_throttle_frees_its_lock_when_a_waiter_is_cancelled():
+    async def run():
+        throttle = Throttle(10)
+        async with throttle:
+            pass
+        waiter = asyncio.create_task(throttle.__aenter__())
+        await asyncio.sleep(0.05)  # holding the lock, sleeping out the gap
+        waiter.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiter
+        assert not throttle._lock.locked()
+
+    asyncio.run(run())
+
+
+def test_bundled_intermediates_are_not_trust_anchors():
+    assert not ssl_context().verify_flags & ssl.VERIFY_X509_PARTIAL_CHAIN
+
+
+def test_fetcher_refuses_other_ports():
+    async def run():
+        async with aiohttp.ClientSession() as session:
+            fetcher = Fetcher(session, ["api.loe.lviv.ua"])
+            assert fetcher.allowed("https://api.loe.lviv.ua/a") and fetcher.allowed("https://api.loe.lviv.ua:443/a")
+            for url in ("https://api.loe.lviv.ua:22/", "https://api.loe.lviv.ua:6379/"):
+                assert not fetcher.allowed(url)
+
+    asyncio.run(run())
+
+
+def test_status_summary_cells_stay_plain_text():
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    path = Path(__file__).parent.parent / "scripts" / "source_status.py"
+    spec = importlib.util.spec_from_file_location("source_status", path)
+    module = sys.modules["source_status"] = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    cell = module.cell("HTTP 500 | ![x](https://evil.example/t.png)\n## big")
+    assert cell == r"HTTP 500 \| \!\[x\]\(https://evil.example/t.png\) \#\# big"

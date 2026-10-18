@@ -12,6 +12,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
 
+from ..http import FetchError
+
 _VOID = frozenset(
     "area base br col embed hr img input link meta param source track wbr".split()
 )
@@ -30,10 +32,13 @@ _BLOCK = frozenset(
 )
 #: Deeper elements are attached flat to the last open one. Real pages nest a few dozen levels.
 MAX_DEPTH = 256
+#: Elements in one page. Real schedule pages have under 2,000; a node costs ~450 bytes, so
+#: this keeps the tree of a hostile page to ~25 MB.
+MAX_NODES = 50_000
 _SPACE_RE = re.compile(r"\s+")
 
 
-@dataclass
+@dataclass(slots=True)
 class Node:
     tag: str
     attrs: dict[str, str] = field(default_factory=dict)
@@ -61,7 +66,16 @@ class Node:
         ]
 
     def find(self, tag: str | None = None, *, cls: str | None = None, id: str | None = None) -> Node | None:
-        return next(iter(self.find_all(tag, cls=cls, id=id)), None)
+        return next(
+            (
+                n
+                for n in self.iter()
+                if (tag is None or n.tag == tag)
+                and (cls is None or cls in n.classes)
+                and (id is None or n.attrs.get("id") == id)
+            ),
+            None,
+        )
 
     def text(self) -> str:
         """All text inside, with runs of whitespace collapsed to one space."""
@@ -80,14 +94,25 @@ class Node:
         return _SPACE_RE.sub(" ", "".join(parts)).strip()
 
 
+class TooManyNodes(FetchError):
+    """The page has more elements than any real schedule page (see ``MAX_NODES``)."""
+
+
 class _Builder(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.root = Node("#root")
         self.stack = [self.root]
+        self.nodes = 0
         #: Open elements by tag, so an end tag nothing matches costs O(1) instead of a scan.
         self.open = Counter[str]()
         self.skip = 0
+
+    def _node(self, tag: str, attrs: list[tuple[str, str | None]]) -> Node:
+        self.nodes += 1
+        if self.nodes > MAX_NODES:
+            raise TooManyNodes(f"over {MAX_NODES} elements")
+        return Node(tag, {k: v or "" for k, v in attrs})
 
     def _close_from(self, index: int) -> None:
         for node in self.stack[index:]:
@@ -105,7 +130,7 @@ class _Builder(HTMLParser):
         closes = _AUTO_CLOSE.get(tag)
         if closes and len(self.stack) > 1 and self.stack[-1].tag in closes:
             self._close_from(len(self.stack) - 1)
-        node = Node(tag, {k: v or "" for k, v in attrs})
+        node = self._node(tag, attrs)
         self.stack[-1].children.append(node)
         if tag not in _VOID and len(self.stack) < MAX_DEPTH:
             self.stack.append(node)
@@ -113,7 +138,7 @@ class _Builder(HTMLParser):
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if not self.skip:
-            self.stack[-1].children.append(Node(tag, {k: v or "" for k, v in attrs}))
+            self.stack[-1].children.append(self._node(tag, attrs))
 
     def handle_endtag(self, tag: str) -> None:
         if self.skip:

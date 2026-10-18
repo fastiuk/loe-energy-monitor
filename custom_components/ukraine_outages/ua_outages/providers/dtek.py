@@ -12,6 +12,7 @@ With nothing published ``data`` is an empty list.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from collections.abc import Callable
@@ -146,7 +147,7 @@ class DtekPage(Provider):
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         resp = await http.get(self.url, headers={"Accept": "text/html", "Accept-Language": "uk"})
-        return parse_fact(extract_fact(resp.text()), self.groups)
+        return await asyncio.to_thread(lambda: parse_fact(extract_fact(resp.text()), self.groups))
 
 
 MIRROR_URL = "https://raw.githubusercontent.com/Baskerville42/outage-data-ua/main/data/{region}.json"

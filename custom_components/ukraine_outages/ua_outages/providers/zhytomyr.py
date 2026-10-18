@@ -13,6 +13,7 @@ for the street: settlement, street, houses ("49, 55, 53"), queue, subqueue and a
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections import Counter, defaultdict
 from collections.abc import Sequence
@@ -89,7 +90,7 @@ class Zhytomyr(Provider):
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         resp = await http.get(URL)
-        return parse(resp.text("cp1251"))
+        return await asyncio.to_thread(parse, resp.text("cp1251"))
 
 
 _SELECTS = ("rem_id", "naspunkt_id", "vulica_id")

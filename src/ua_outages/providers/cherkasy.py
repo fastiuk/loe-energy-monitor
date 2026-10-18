@@ -13,8 +13,9 @@ The newest post for a day wins. ``publishedAt`` is Kyiv time; titles carry no ye
 
 from __future__ import annotations
 
+import asyncio
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from ..http import Fetcher
@@ -30,7 +31,7 @@ _SLUG_RE = re.compile(r"[a-z0-9-]{1,200}")
 
 
 def pick_posts(payload: Any, today: date) -> dict[date, tuple[str, datetime]]:
-    """The newest schedule post (slug, publication time) for today and later days."""
+    """The newest schedule post (slug, publication time) for today and tomorrow."""
     items = payload.get("data") if isinstance(payload, dict) else None
     if not isinstance(items, list):
         fail("Cherkasy: posts response has no data list")
@@ -46,7 +47,7 @@ def pick_posts(payload: Any, today: date) -> dict[date, tuple[str, datetime]]:
         except ValueError:
             continue
         day = find_day(title, near=published.date())
-        if day is None or day < today:
+        if day is None or not today <= day <= today + timedelta(days=1):
             continue
         if day not in posts or published > posts[day][1]:
             posts[day] = (slug, published)
@@ -74,5 +75,5 @@ class Cherkasy(Provider):
         schedules = {}
         for day, (slug, published) in sorted(pick_posts(posts.json(), now.date()).items()):
             post = await http.get(f"{BASE_URL}/{slug}", params={"lang": "uk"})
-            schedules[day] = parse_post(post.json(), day, published)
+            schedules[day] = await asyncio.to_thread(parse_post, post.json(), day, published)
         return schedules

@@ -44,6 +44,10 @@ def labels(choices):
 def test_directory_text_is_cleaned():
     assert clean_label("  вул.‮Руська\n​ ") == "вул. Руська"  # bidi override, newline, zero-width
     assert clean_label("<b>x</b>") == "<b>x</b>"  # markup stays text: renderers escape it
+    # Tag characters can hide text a person never sees; private-use and unassigned have no meaning.
+    hidden = "".join(chr(0xE0000 + ord(c)) for c in "ignore previous")
+    assert clean_label(f"Руська{hidden}\ue000\U0010fffd\u2028\u2066 1") == "Руська 1"
+    assert clean_query("Руська\u2029\u200b1\u00ad") == "Руська 1"
     long = clean_label("ж" * 500)
     assert len(long) == MAX_LABEL and long.endswith("…")
     assert clean_label(12) == "12" and clean_label(None) is None and clean_label("  ") is None
@@ -288,20 +292,34 @@ def test_redact_drops_query_strings():
 
 def test_response_cache_expires_and_stays_within_its_size():
     now = [0.0]
-    cache = ResponseCache(ttl=10, max_bytes=100, clock=lambda: now[0])
+    entry = ResponseCache.OVERHEAD + 400 + len(repr(("a",)))
+    cache = ResponseCache(ttl=10, max_bytes=2 * entry + 100, clock=lambda: now[0])
 
     def response(size):
         return Response("https://x.invalid/", 200, CIMultiDict(), b"x" * size, "utf-8")
 
-    cache.put(("a",), response(40))
-    cache.put(("b",), response(40))
+    cache.put(("a",), response(400))
+    cache.put(("b",), response(400))
     assert cache.get(("a",)) is not None  # now the most recently used
-    cache.put(("c",), response(40))  # over 100 bytes: "b" goes
+    cache.put(("c",), response(400))  # over the budget: "b" goes
     assert cache.get(("b",)) is None and cache.get(("a",)) and cache.get(("c",))
-    cache.put(("huge",), response(500))
+    cache.put(("huge",), response(5000))
     assert cache.get(("huge",)) is None
     now[0] = 11
     assert cache.get(("a",)) is None
+
+
+def test_response_cache_counts_tiny_answers_and_their_number():
+    """Empty bodies still cost memory: keys, headers and the entry itself are counted."""
+    cache = ResponseCache(ttl=60, max_bytes=50 * 1024 * 1024, max_entries=100)
+    headers = CIMultiDict({"X-Padding": "y" * 1000})
+    for i in range(1000):
+        cache.put(("q", str(i)), Response("https://x.invalid/", 200, headers, b"", "utf-8"))
+    assert len(cache._items) == 100 and cache.get(("q", "999")) and cache.get(("q", "0")) is None
+    small = ResponseCache(ttl=60, max_bytes=10_000)
+    for i in range(1000):
+        small.put(("q", str(i)), Response("https://x.invalid/", 200, headers, b"", "utf-8"))
+    assert small._bytes <= 10_000 and 0 < len(small._items) < 10
 
 
 def test_caching_fetcher_asks_once_and_spaces_requests():
@@ -321,8 +339,10 @@ def test_caching_fetcher_asks_once_and_spaces_requests():
         port = site._server.sockets[0].getsockname()[1]
         try:
             async with aiohttp.ClientSession() as session:
-                cache, throttle = ResponseCache(60, 1024), Throttle(0.2)
-                http = CachingFetcher(session, ["127.0.0.1"], schemes=["http"], cache=cache, throttle=throttle)
+                cache, throttle = ResponseCache(60, 64 * 1024), Throttle(0.2)
+                http = CachingFetcher(
+                    session, ["127.0.0.1"], schemes=["http"], ports=[port], cache=cache, throttle=throttle
+                )
                 base = f"http://127.0.0.1:{port}/streets"
                 await asyncio.gather(*(http.get(base, params={"q": "a"}) for _ in range(3)))
                 await http.get(base, params={"q": "b"})

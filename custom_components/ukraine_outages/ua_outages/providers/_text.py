@@ -20,8 +20,9 @@ MONTHS = {
     "липня": 7, "серпня": 8, "вересня": 9, "жовтня": 10, "листопада": 11, "грудня": 12,
 }  # fmt: skip
 
+# Bounded whitespace: two unbounded \s* around the optional "/" made "<" plus many spaces quadratic.
 _BLOCK_TAG_RE = re.compile(
-    r"<\s*/?\s*(?:p|div|br|li|ul|ol|tr|td|th|table|h\d|article|section)\b[^<>]{0,500}>", re.IGNORECASE
+    r"<\s{0,5}/?\s{0,5}(?:p|div|br|li|ul|ol|tr|td|th|table|h\d|article|section)\b[^<>]{0,500}>", re.IGNORECASE
 )
 _TAG_RE = re.compile(r"<[^<>]{0,1000}>")
 _SPACE_RE = re.compile(r"[ \t  ]+")

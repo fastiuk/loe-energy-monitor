@@ -7,6 +7,7 @@ A header row lists the subqueues (``1.1`` … ``6.2``); then one row per day: th
 
 from __future__ import annotations
 
+import asyncio
 import re
 from datetime import date, datetime
 
@@ -82,4 +83,4 @@ class Rivne(Provider):
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         resp = await http.get(URL)
-        return parse(resp.text())
+        return await asyncio.to_thread(parse, resp.text())

@@ -12,6 +12,7 @@ Known sentence formats::
 
 from __future__ import annotations
 
+import bisect
 import html
 import logging
 import re
@@ -24,16 +25,25 @@ log = logging.getLogger(__name__)
 
 BASE_URL = "https://api.loe.lviv.ua"
 
-_BLOCK_TAG_RE = re.compile(r"<\s*/?\s*(?:p|div|br|li|ul|ol|tr|h\d)\b[^>]*>", re.IGNORECASE)
-_TAG_RE = re.compile(r"<[^>]*>")
+# The API is untrusted input: these limits keep a malformed or hostile response from
+# stalling the event loop (Home Assistant parses on it) or flooding messages and logs.
+MAX_RAW_HTML = 100_000  # a real day's schedule is about 1 KB
+MAX_SENTENCE = 300
+MAX_NOTES = 10
+
+# Bounded quantifiers keep every pattern linear in the input size.
+_BLOCK_TAG_RE = re.compile(r"<\s*/?\s*(?:p|div|br|li|ul|ol|tr|h\d)\b[^<>]{0,500}>", re.IGNORECASE)
+_TAG_RE = re.compile(r"<[^<>]{0,500}>")
 _SPACE_RE = re.compile(r"[ \t ]+")
-_DAY_RE = re.compile(r"графік\b.*?\bна\s+(\d{1,2})\.(\d{1,2})\.(\d{4})", re.IGNORECASE)
+_DAY_RE = re.compile(r"графік\b[^\n]{0,200}?\bна\s+(\d{1,2})\.(\d{1,2})\.(\d{4})", re.IGNORECASE)
 _UPDATED_RE = re.compile(
     r"станом\s+на\s+(\d{1,2}):(\d{2})\s+(\d{1,2})\.(\d{1,2})\.(\d{4})", re.IGNORECASE
 )
 _GROUP_RE = re.compile(r"Груп[аи]\s+(\d)\s*\.\s*(\d)\.?", re.IGNORECASE)
 _INTERVAL_RE = re.compile(r"(\d{1,2}):(\d{2})\s*(?:до|-|–|—)\s*(\d{1,2}):(\d{2})")
 _POWER_ON_RE = re.compile(r"електроенергія\s+є|відключень\s+не", re.IGNORECASE)
+# Only a plain path on the API host; "@evil.example/x" or "//evil.example" would change the host.
+_IMAGE_PATH_RE = re.compile(r"/[A-Za-z0-9_.-][A-Za-z0-9_./-]{0,299}")
 
 
 def _text_lines(raw_html: str) -> list[str]:
@@ -69,7 +79,10 @@ def _parse_outages(day: date, sentence: str) -> tuple[Outage, ...] | None:
 
 
 def parse_day(raw_html: str, image_url: str | None = None) -> DaySchedule | None:
-    """Parse one day's ``rawHtml``; ``None`` if it is empty or has no date header."""
+    """Parse one day's ``rawHtml``; ``None`` if it is empty, too long or has no date header."""
+    if len(raw_html or "") > MAX_RAW_HTML:
+        log.warning("Schedule text is %d characters long, ignoring it", len(raw_html))
+        return None
     lines = _text_lines(raw_html or "")
     text = "\n".join(lines)
     if not (m := _DAY_RE.search(text)):
@@ -92,26 +105,31 @@ def parse_day(raw_html: str, image_url: str | None = None) -> DaySchedule | None
     groups: dict[str, tuple[Outage, ...]] = {}
     unknown: dict[str, str] = {}
     matches = list(_GROUP_RE.finditer(text))
+    newlines = [i for i, char in enumerate(text) if char == "\n"]
     for i, g in enumerate(matches):
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
-        if (newline := text.find("\n", g.end())) != -1:
-            end = min(end, newline)
+        if (n := bisect.bisect_left(newlines, g.end())) < len(newlines):
+            end = min(end, newlines[n])
         group = f"{g[1]}.{g[2]}"
         outages = _parse_outages(day, text[g.end() : end])
         groups.pop(group, None)
         unknown.pop(group, None)
         if outages is None:
-            sentence = text[g.start() : end].strip()
-            log.warning("Unrecognised schedule sentence: %s", sentence)
-            unknown[group] = sentence
+            unknown[group] = text[g.start() : end].strip()[:MAX_SENTENCE]
         else:
             groups[group] = outages
+    if unknown:
+        log.warning(
+            "Unrecognised schedule sentences for %d group(s), e.g. %r",
+            len(unknown),
+            next(iter(unknown.values())),
+        )
 
     notes = tuple(
-        line
+        line[:MAX_SENTENCE]
         for line in lines
         if not (_DAY_RE.search(line) or _UPDATED_RE.search(line) or _GROUP_RE.search(line))
-    )
+    )[:MAX_NOTES]
     return DaySchedule(day, updated_at, groups, unknown, notes, image_url)
 
 
@@ -131,16 +149,21 @@ def parse_menu(payload: dict[str, Any]) -> dict[date, DaySchedule]:
     schedules: dict[date, DaySchedule] = {}
     for item in menu.get("menuItems") or []:
         raw_html = item.get("rawHtml") or ""
-        if not raw_html.strip():
+        if not isinstance(raw_html, str) or not raw_html.strip():
             continue
-        image = item.get("imageUrl") or ""
-        schedule = parse_day(raw_html, BASE_URL + image if len(image) > 1 else None)
+        schedule = parse_day(raw_html, _image_url(item.get("imageUrl")))
         if schedule is None:
             continue
         previous = schedules.get(schedule.day)
         if previous is None or _newer(schedule, previous):
             schedules[schedule.day] = schedule
     return schedules
+
+
+def _image_url(path: object) -> str | None:
+    if isinstance(path, str) and _IMAGE_PATH_RE.fullmatch(path) and "//" not in path:
+        return BASE_URL + path
+    return None
 
 
 def _newer(a: DaySchedule, b: DaySchedule) -> bool:

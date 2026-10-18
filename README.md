@@ -87,7 +87,7 @@ automation:
 ## Бібліотека `loe_core`
 
 ```bash
-pip install "loe-energy-monitor @ git+https://github.com/fastiuk/loe-energy-monitor@v0.2.0"
+pip install "loe-energy-monitor @ git+https://github.com/fastiuk/loe-energy-monitor@v0.2.1"
 ```
 
 ```python

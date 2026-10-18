@@ -1,0 +1,125 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Область",
+        "description": "Оберіть свою область. Графіки недоступні для: {unavailable}.",
+        "data": {
+          "region": "Область"
+        }
+      },
+      "operator": {
+        "title": "Оператор",
+        "description": "У регіоні «{region}» кілька операторів систем розподілу. Оберіть того, що в рахунку за світло.",
+        "data": {
+          "operator": "Оператор"
+        }
+      },
+      "method": {
+        "title": "{operator}",
+        "description": "Оберіть чергу зі списку або знайдіть її за адресою в довіднику оператора.",
+        "menu_options": {
+          "group": "Обрати чергу зі списку",
+          "address": "Знайти чергу за адресою"
+        }
+      },
+      "group": {
+        "title": "{operator}",
+        "description": "Оберіть свою чергу (групу). {note}",
+        "data": {
+          "group": "Черга"
+        }
+      },
+      "address": {
+        "title": "Пошук за адресою — крок {number} з {steps}",
+        "description": "{prompt} (наприклад, «{example}»). Уже обрано: {chosen}.",
+        "data": {
+          "query": "Пошук"
+        }
+      },
+      "address_pick": {
+        "title": "Оберіть із {count} збігів",
+        "description": "Уже обрано: {chosen}.",
+        "data": {
+          "choice": "Збіг"
+        }
+      },
+      "retry": {
+        "title": "Графік не завантажився",
+        "description": "Натисніть «Надіслати», щоб спробувати ще раз."
+      }
+    },
+    "error": {
+      "cannot_connect": "Не вдалося звернутися до сайту оператора. Спробуйте пізніше.",
+      "not_found": "Нічого не знайдено. Перевірте написання або напишіть коротше.",
+      "query_required": "Напишіть, що шукати.",
+      "query_too_short": "Напишіть щонайменше дві літери."
+    },
+    "abort": {
+      "already_configured": "Цю чергу (чи адресу) вже додано.",
+      "cannot_connect": "Не вдалося звернутися до довідника оператора. Спробуйте пізніше.",
+      "no_group": "Ця адреса не входить у жодну чергу ({other})."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Інтервал оновлення"
+        },
+        "data_description": {
+          "scan_interval": "Як часто перевіряти графік, у хвилинах (для цього оператора щонайменше {minimum})."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "outage": {
+        "name": "Відключення зараз",
+        "state_attributes": {
+          "group": {
+            "name": "Черга"
+          },
+          "today": {
+            "name": "Сьогодні"
+          },
+          "tomorrow": {
+            "name": "Завтра"
+          },
+          "today_possible": {
+            "name": "Сьогодні, можливі"
+          },
+          "tomorrow_possible": {
+            "name": "Завтра, можливі"
+          }
+        }
+      },
+      "possible_outage": {
+        "name": "Можливе відключення зараз"
+      }
+    },
+    "calendar": {
+      "schedule": {
+        "name": "Графік відключень"
+      }
+    },
+    "sensor": {
+      "next_outage": {
+        "name": "Наступне відключення"
+      },
+      "power_back": {
+        "name": "Увімкнення світла"
+      },
+      "outage_time_today": {
+        "name": "Без світла сьогодні"
+      },
+      "updated": {
+        "name": "Графік оновлено"
+      },
+      "source": {
+        "name": "Джерело даних"
+      }
+    }
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Region",
+        "description": "Pick your region. Schedules are not available for: {unavailable}.",
+        "data": {
+          "region": "Region"
+        }
+      },
+      "operator": {
+        "title": "Operator",
+        "description": "{region} has more than one distribution operator. Pick the one on your bill.",
+        "data": {
+          "operator": "Operator"
+        }
+      },
+      "method": {
+        "title": "{operator}",
+        "description": "Pick your outage group from the list, or find it by address in the operator's directory.",
+        "menu_options": {
+          "group": "Pick the group from the list",
+          "address": "Find the group by address"
+        }
+      },
+      "group": {
+        "title": "{operator}",
+        "description": "Pick your outage group. {note}",
+        "data": {
+          "group": "Outage group"
+        }
+      },
+      "address": {
+        "title": "Find by address — step {number} of {steps}",
+        "description": "{prompt} (e.g. «{example}»). Chosen so far: {chosen}.",
+        "data": {
+          "query": "Search"
+        }
+      },
+      "address_pick": {
+        "title": "Pick from {count} matches",
+        "description": "Chosen so far: {chosen}.",
+        "data": {
+          "choice": "Match"
+        }
+      },
+      "retry": {
+        "title": "Schedule not loaded",
+        "description": "Submit to try again."
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the operator's site. Try again later.",
+      "not_found": "Nothing found. Check the spelling or type less.",
+      "query_required": "Type what to search for.",
+      "query_too_short": "Type at least two letters."
+    },
+    "abort": {
+      "already_configured": "This group (or address) is already added.",
+      "cannot_connect": "Could not reach the operator's directory. Try again later.",
+      "no_group": "This address is in no outage group ({other})."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Update interval"
+        },
+        "data_description": {
+          "scan_interval": "How often to check the schedule, in minutes (at least {minimum} for this operator)."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "outage": {
+        "name": "Outage now",
+        "state_attributes": {
+          "group": {
+            "name": "Group"
+          },
+          "today": {
+            "name": "Today"
+          },
+          "tomorrow": {
+            "name": "Tomorrow"
+          },
+          "today_possible": {
+            "name": "Today, possible"
+          },
+          "tomorrow_possible": {
+            "name": "Tomorrow, possible"
+          }
+        }
+      },
+      "possible_outage": {
+        "name": "Possible outage now"
+      }
+    },
+    "calendar": {
+      "schedule": {
+        "name": "Outage schedule"
+      }
+    },
+    "sensor": {
+      "next_outage": {
+        "name": "Next outage"
+      },
+      "power_back": {
+        "name": "Power back"
+      },
+      "outage_time_today": {
+        "name": "Outage time today"
+      },
+      "updated": {
+        "name": "Schedule updated"
+      },
+      "source": {
+        "name": "Data source"
+      }
+    }
+  }
+}

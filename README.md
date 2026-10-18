@@ -1,61 +1,96 @@
-# LOE Energy Monitor
+# Ukraine Energy Monitor — графіки відключень світла
 
-[![Tests](https://img.shields.io/github/actions/workflow/status/fastiuk/loe-energy-monitor/tests.yml?branch=main&label=tests&logo=githubactions&logoColor=white)](https://github.com/fastiuk/loe-energy-monitor/actions/workflows/tests.yml)
-[![LOE API](https://img.shields.io/github/actions/workflow/status/fastiuk/loe-energy-monitor/live.yml?branch=main&label=LOE%20API&logo=githubactions&logoColor=white)](https://github.com/fastiuk/loe-energy-monitor/actions/workflows/live.yml)
-[![Validate](https://img.shields.io/github/actions/workflow/status/fastiuk/loe-energy-monitor/validate.yml?branch=main&label=HACS%20%2B%20hassfest&logo=homeassistant&logoColor=white)](https://github.com/fastiuk/loe-energy-monitor/actions/workflows/validate.yml)
-[![Release](https://img.shields.io/github/v/release/fastiuk/loe-energy-monitor?sort=semver&logo=github&logoColor=white)](https://github.com/fastiuk/loe-energy-monitor/releases)
+[![Tests](https://img.shields.io/github/actions/workflow/status/fastiuk/ukraine-energy-monitor/tests.yml?branch=main&label=tests&logo=githubactions&logoColor=white)](https://github.com/fastiuk/ukraine-energy-monitor/actions/workflows/tests.yml)
+[![Sources](https://img.shields.io/github/actions/workflow/status/fastiuk/ukraine-energy-monitor/sources.yml?branch=main&label=джерела&logo=githubactions&logoColor=white)](https://github.com/fastiuk/ukraine-energy-monitor/actions/workflows/sources.yml)
+[![Validate](https://img.shields.io/github/actions/workflow/status/fastiuk/ukraine-energy-monitor/validate.yml?branch=main&label=HACS%20%2B%20hassfest&logo=homeassistant&logoColor=white)](https://github.com/fastiuk/ukraine-energy-monitor/actions/workflows/validate.yml)
+[![Release](https://img.shields.io/github/v/release/fastiuk/ukraine-energy-monitor?sort=semver&logo=github&logoColor=white)](https://github.com/fastiuk/ukraine-energy-monitor/releases)
 [![HACS](https://img.shields.io/badge/HACS-custom-41BDF5?logo=homeassistantcommunitystore&logoColor=white)](#home-assistant)
-[![Telegram](https://img.shields.io/badge/Telegram-@loe__grafik__bot-26A5E4?logo=telegram&logoColor=white)](https://t.me/loe_grafik_bot)
-[![Bot image](https://img.shields.io/docker/v/fastiuk/loe-grafik-bot?sort=semver&label=bot%20image&logo=docker&logoColor=white)](https://hub.docker.com/r/fastiuk/loe-grafik-bot)
-[![License](https://img.shields.io/github/license/fastiuk/loe-energy-monitor)](LICENSE)
+[![Telegram](https://img.shields.io/badge/Telegram-@grafik__ua__bot-26A5E4?logo=telegram&logoColor=white)](https://t.me/grafik_ua_bot)
+[![License](https://img.shields.io/github/license/fastiuk/ukraine-energy-monitor)](LICENSE)
 
-Графіки погодинних відключень світла Львівобленерго
-([poweron.loe.lviv.ua](https://poweron.loe.lviv.ua/)): інтеграція для [Home Assistant](#home-assistant)
-і Python-бібліотека, що завантажує й розбирає графіки. Проєкт неофіційний.
+Графіки погодинних відключень світла (ГПВ) для всіх областей України: інтеграція для
+[Home Assistant](#home-assistant) і Python-бібліотека, що бере графіки з сайтів обленерго, ДТЕК і
+YASNO, розбирає їх в одну модель і знаходить чергу за адресою. Проєкт неофіційний.
 
-## Telegram-бот
+Telegram-бот на цих даних: **[@grafik_ua_bot](https://t.me/grafik_ua_bot)**.
 
-**[@loe_grafik_bot](https://t.me/loe_grafik_bot)** — неофіційний бот на тих самих даних:
+## Статус джерел
 
-- підписка на одну чи кілька груп: 1.1, 1.2, …, 6.2;
-- повідомлення, коли опублікували графік на завтра або змінили поточний (видно, що було і що стало);
-- нагадування перед вимкненням і увімкненням світла (за 5–60 хв або без нагадувань);
-- `/today`, `/tomorrow` — графік для своїх груп або для всіх;
-- працює в особистих чатах, групах і каналах.
+Кожні три години CI опитує джерела кожного оператора й оновлює бейджі. **працює** — основне
+джерело відповідає у відомому форматі; **резервне джерело** — основне не відповідає, але працює
+запасне; **перевіряється лише з України** — сайт не відповідає серверам GitHub за кордоном (з
+домашнього підключення в Україні працює); **згодом** / **не публікує** / **недоступно** — джерела
+поки немає. 🔎 — чергу можна знайти за адресою.
 
-Відкрийте бота, натисніть **Start** і оберіть свою чергу.
+| Область | Оператор | Статус | 🔎 |
+|---|---|---|---|
+| м. Київ | ДТЕК Київські електромережі | [![dtek-kem](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fdtek-kem.json&label=&cacheSeconds=1800)](docs/SOURCES.md) | 🔎 |
+| Київська | ДТЕК Київські регіональні електромережі | [![dtek-krem](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fdtek-krem.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Вінницька | Вінницяобленерго | [![vinnytsia-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fvinnytsia-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Волинська | Волиньобленерго | [![volyn-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fvolyn-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Дніпропетровська | ДТЕК Дніпровські електромережі | [![dtek-dnem](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fdtek-dnem.json&label=&cacheSeconds=1800)](docs/SOURCES.md) | 🔎 |
+| Дніпропетровська | Центральна енергетична компанія (ЦЕК) | [![cek](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fcek.json&label=&cacheSeconds=1800)](docs/SOURCES.md) | 🔎 |
+| Донецька | ДТЕК Донецькі електромережі | [![dtek-dem](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fdtek-dem.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Житомирська | Житомиробленерго | [![zhytomyr-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fzhytomyr-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) | 🔎 |
+| Закарпатська | Закарпаттяобленерго | [![zakarpattia-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fzakarpattia-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Запорізька | Запоріжжяобленерго | [![zaporizhzhia-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fzaporizhzhia-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Івано-Франківська | Прикарпаттяобленерго | [![prykarpattia-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fprykarpattia-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Кіровоградська | Кіровоградобленерго | [![kirovohrad-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fkirovohrad-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Луганська | Луганське енергетичне об'єднання | [![luhansk-leo](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fluhansk-leo.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Львівська | Львівобленерго | [![lviv-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Flviv-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) | 🔎 |
+| Миколаївська | Миколаївобленерго | [![mykolaiv-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fmykolaiv-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) | 🔎 |
+| Одеська | ДТЕК Одеські електромережі | [![dtek-oem](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fdtek-oem.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Полтавська | Полтаваобленерго | [![poltava-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fpoltava-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) | 🔎 |
+| Рівненська | Рівнеобленерго | [![rivne-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Frivne-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Сумська | Сумиобленерго | [![sumy-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fsumy-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Тернопільська | Тернопільобленерго | [![ternopil-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fternopil-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) | 🔎 |
+| Харківська | Харківобленерго | [![kharkiv-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fkharkiv-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Херсонська | Херсонобленерго | [![kherson-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fkherson-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Хмельницька | Хмельницькобленерго | [![khmelnytskyi-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fkhmelnytskyi-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Черкаська | Черкасиобленерго | [![cherkasy-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fcherkasy-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Чернівецька | Чернівціобленерго | [![chernivtsi-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fchernivtsi-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| Чернігівська | Чернігівобленерго | [![chernihiv-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fchernihiv-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
 
-Код бота: [fastiuk/loe-grafik-bot](https://github.com/fastiuk/loe-grafik-bot) ·
-Docker-образ для власного екземпляра: [fastiuk/loe-grafik-bot](https://hub.docker.com/r/fastiuk/loe-grafik-bot)
-(у тому числі як OCI-контейнер Proxmox без Docker).
+Де і як береться графік кожного оператора — [docs/SOURCES.md](docs/SOURCES.md). Захист сайтів від
+ботів не обходимо: для Київщини, де сайт ДТЕК закритий, дані беруться з відкритого дзеркала
+[outage-data-ua](https://github.com/Baskerville42/outage-data-ua).
 
 ## Home Assistant
 
-Інтеграція `loe_outages` додає для обраної групи пристрій «LOE 4.2» з такими сутностями:
+Інтеграція «Ukraine Power Outages» додає для обраної черги пристрій з такими сутностями:
 
 | Сутність | |
 |---|---|
-| `binary_sensor` «Відключення зараз» | увімкнено, поки триває відключення за графіком; атрибути `today` / `tomorrow` — інтервали текстом (`tomorrow` = `null`, поки графік не опубліковано) |
-| `calendar` «Графік відключень» | кожне відключення — подія; відключення через північ — одна подія |
+| `binary_sensor` «Відключення зараз» | увімкнено, поки триває відключення за графіком; атрибути `today` / `tomorrow` — інтервали текстом, `today_possible` / `tomorrow_possible` — можливі відключення (`null`, поки день не опубліковано) |
+| `binary_sensor` «Можливе відключення зараз» | для операторів, що публікують «можливі» відключення (вимкнена за замовчуванням) |
+| `calendar` «Графік відключень» | кожне відключення — подія; можливі позначені; відключення через північ — одна подія |
 | `sensor` «Наступне відключення» | час початку наступного відключення |
 | `sensor` «Увімкнення світла» | коли мають увімкнути світло: кінець поточного або наступного відключення |
 | `sensor` «Без світла сьогодні» | скільки годин без світла сьогодні за графіком |
-| `sensor` «Графік оновлено» | коли ЛОЕ востаннє оновили графік (діагностика) |
+| `sensor` «Графік оновлено» | коли оператор востаннє оновив графік (діагностика) |
+| `sensor` «Джерело даних» | з якого джерела прийшли дані (діагностика, вимкнена за замовчуванням) |
 
-Стан змінюється рівно на межах відключень, а не лише після чергового опитування.
-Якщо API ЛОЕ недоступний, сутності показують останній відомий графік.
+Стан змінюється рівно на межах відключень, а не лише після чергового опитування. Якщо сайт
+оператора недоступний, сутності показують останній відомий графік. Кілька черг одного оператора
+опитують його сайт один раз.
 
 ### Встановлення через HACS
 
-1. HACS → ⋮ → **Custom repositories** → `https://github.com/fastiuk/loe-energy-monitor`,
+1. HACS → ⋮ → **Custom repositories** → `https://github.com/fastiuk/ukraine-energy-monitor`,
    тип **Integration**.
-2. Знайдіть **LOE Outages** у HACS, встановіть і перезапустіть Home Assistant.
-3. **Налаштування → Пристрої та служби → Додати інтеграцію → LOE Outages**, оберіть групу.
-   Для кількох груп додайте інтеграцію кілька разів.
+2. Знайдіть **Ukraine Power Outages** у HACS, встановіть і перезапустіть Home Assistant.
+3. **Налаштування → Пристрої та служби → Додати інтеграцію → Ukraine Power Outages**: оберіть
+   область, оператора (якщо їх кілька) і чергу — зі списку або за адресою. Для кількох черг
+   додайте інтеграцію кілька разів.
 
-Інтервал оновлення (за замовчуванням 5 хв) змінюється в параметрах інтеграції.
+Тернопільобленерго віддає графік лише для конкретної адреси, тож його черга додається тільки
+пошуком за адресою; адреса зберігається в налаштуваннях інтеграції. Пошук не використовує
+особового рахунку чи інших персональних даних.
 
-Без HACS: скопіюйте `custom_components/loe_outages` у `config/custom_components/`.
+Інтервал оновлення (за замовчуванням 5 хв, не частіше, ніж дозволяє джерело) змінюється в
+параметрах інтеграції.
+
+Без HACS: скопіюйте `custom_components/ukraine_outages` у `config/custom_components/`.
 
 ### Приклад автоматизації
 
@@ -66,63 +101,60 @@ automation:
       - trigger: calendar
         event: start
         offset: "-01:00:00"
-        entity_id: calendar.loe_4_2_outage_schedule
+        entity_id: calendar.m_kiiv_grupa_19_1_outage_schedule
     actions:
       - action: switch.turn_on
         target:
           entity_id: switch.powerbank_charger
 ```
 
-## Дані
-
-Графіки беруться з того ж неофіційного API, що й сайт ЛОЕ (див. [API.md](API.md)).
-Щодня CI робить запити до справжнього API й перевіряє, що сайт досі бере дані звідти і що формат
-графіка не змінився — стан видно на беджі **LOE API**.
-
-- Відключення через північ (22:00–24:00 і 00:00–02:00 наступного дня) вважається одним.
-- Якщо сайт віддає недоредагований графік (частина груп зникла), ці групи беруться з попередньої
-  версії і не вважаються зміненими.
-- Cloudflare кешує відповідь API до двох годин; клієнт щоразу просить свіжу копію.
-
-## Бібліотека `loe_core`
+## Бібліотека `ua_outages`
 
 ```bash
-pip install "loe-energy-monitor @ git+https://github.com/fastiuk/loe-energy-monitor@v0.2.1"
+pip install "ukraine-energy-monitor @ https://github.com/fastiuk/ukraine-energy-monitor/archive/refs/tags/v0.3.0.tar.gz"
 ```
 
 ```python
 import asyncio
 
-import aiohttp
-from loe_core import LoeClient, current_outage, next_outage, now_kyiv
+from ua_outages import Fetcher, current_outage, next_outage, now_kyiv, operator
+from ua_outages.http import new_session
 
 
 async def main() -> None:
-    async with aiohttp.ClientSession() as session:
-        schedules = await LoeClient(session).fetch_schedule()  # {date: DaySchedule}
+    kyiv = operator("dtek-kem")
+    source = kyiv.sources[0]
+    async with new_session() as session:
+        schedules = await source.fetch(Fetcher(session, source.hosts), now_kyiv())
     days, now = list(schedules.values()), now_kyiv()
-    print("зараз:", current_outage(days, "4.2", now))
-    print("наступне:", next_outage(days, "4.2", now))
+    print("зараз:", current_outage(days, "19.1", now))
+    print("наступне:", next_outage(days, "19.1", now))
 
 
 asyncio.run(main())
 ```
 
-Ще є `diff_schedules` і `merge_schedules`, щоб знаходити зміни між двома завантаженнями —
-так їх використовує [бот](https://github.com/fastiuk/loe-grafik-bot).
+Ще є реєстр усіх регіонів і операторів (`ua_outages.REGIONS`, `OPERATORS`), пошук черги за
+адресою (`Operator.lookup`) і `diff_schedules` / `merge_schedules`, щоб знаходити зміни між двома
+завантаженнями.
+
+Відповіді сайтів — недовірені дані: запити лише до оголошених хостів джерела, обмеження розміру й
+часу відповіді, розбір лінійний за часом, жоден текст із джерела не стає розміткою.
 
 ## Структура
 
-- `src/loe_core` — завантаження та розбір графіка, порівняння версій;
-- `custom_components/loe_outages` — інтеграція для Home Assistant з власною копією `loe_core`
-  (тест `tests/test_vendored_core.py` стежить, щоб копія не відставала).
+- `src/ua_outages` — моделі, джерела (по модулю на тип сайту), пошук за адресою, реєстр регіонів;
+- `custom_components/ukraine_outages` — інтеграція для Home Assistant з власною копією
+  `ua_outages` (тест `tests/test_vendored_core.py` стежить, щоб копія не відставала);
+- `scripts/source_status.py` — перевірка джерел для бейджів статусу.
 
 ## Розробка
 
 ```bash
 uv sync
 uv run pytest
-LOE_LIVE=1 uv run pytest tests/test_live_api.py   # запити до справжнього API
+LIVE=1 uv run pytest tests/test_live.py      # запити до справжніх джерел
+uv run python scripts/source_status.py       # статус кожного оператора
 ```
 
 Тести Home Assistant запускаються в окремому середовищі (HA вимагає Python 3.14 і свої версії
@@ -134,10 +166,10 @@ uv run --isolated --no-project --python 3.14 \
   pytest tests/ha -o asyncio_mode=auto
 ```
 
-Після змін у `src/loe_core` оновіть копію:
+Після змін у `src/ua_outages` оновіть копію:
 
 ```bash
-rm -rf custom_components/loe_outages/loe_core && cp -R src/loe_core custom_components/loe_outages/loe_core
+rm -rf custom_components/ukraine_outages/ua_outages && cp -R src/ua_outages custom_components/ukraine_outages/ua_outages
 ```
 
 ### CI
@@ -145,15 +177,15 @@ rm -rf custom_components/loe_outages/loe_core && cp -R src/loe_core custom_compo
 | Workflow | Коли | Що робить |
 |---|---|---|
 | `Tests` | кожен push, PR, щодня | тести ядра (Python 3.13) і інтеграції HA (Python 3.14); щодня ще й з найновішою версією HA |
-| `LOE API` | push у `main`, щодня | запити до справжнього API ЛОЕ: чи сайт досі бере дані звідти, чи не змінився формат графіка |
+| `Sources` | push у `main`, кожні 3 год, щодня | статус кожного оператора → бейджі в гілці `status`; щодня — детальні живі тести й адресні довідники |
 | `Validate` | кожен push, PR, щодня | перевірки HACS і hassfest |
 
 Про падіння запланованих запусків GitHub повідомляє листом. Якщо в репозиторії 60 днів не було
 комітів, GitHub вимикає заплановані запуски — їх треба ввімкнути знову у вкладці Actions.
 
-Випуск версії: оновіть `version` у `pyproject.toml` і `custom_components/loe_outages/manifest.json`,
+Випуск версії: оновіть `version` у `pyproject.toml` і `custom_components/ukraine_outages/manifest.json`,
 закомітьте, створіть тег `vX.Y.Z` і GitHub Release.
 
 ## Ліцензія
 
-[MIT](LICENSE)
+[MIT](LICENSE). Дані графіків належать операторам систем розподілу.

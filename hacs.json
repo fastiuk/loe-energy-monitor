@@ -1,5 +1,5 @@
 {
-  "name": "LOE Outages (Львівобленерго)",
+  "name": "Ukraine Power Outages (графіки відключень)",
   "country": "UA",
   "homeassistant": "2025.8.0",
   "render_readme": true

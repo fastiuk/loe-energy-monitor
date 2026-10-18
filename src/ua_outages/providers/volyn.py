@@ -24,6 +24,7 @@ against the expected shape and colours before any cell is read.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Sequence
 from datetime import date, datetime, timedelta
@@ -244,7 +245,9 @@ class Volyn(Provider):
         for day, (path, version) in sorted(latest.items()):
             key = (path, version.uploaded_at, day)
             if (result := self._decoded.get(key)) is None:
-                result = parse_image((await http.get(BASE_URL + path)).body, day)
+                png = (await http.get(BASE_URL + path)).body
+                # Decoding takes a fraction of a second of CPU: keep it off the event loop.
+                result = await asyncio.to_thread(parse_image, png, day)
             decoded[key] = result
             groups, unknown = result
             schedules[day] = DaySchedule(day, version.uploaded_at, groups, unknown, image_url=BASE_URL + path)

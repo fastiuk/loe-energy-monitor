@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/icon.png" width="128" height="128" alt=""></p>
+
 # Ukraine Energy Monitor — графіки відключень світла
 
 [![Tests](https://img.shields.io/github/actions/workflow/status/fastiuk/ukraine-energy-monitor/tests.yml?branch=main&label=tests&logo=githubactions&logoColor=white)](https://github.com/fastiuk/ukraine-energy-monitor/actions/workflows/tests.yml)

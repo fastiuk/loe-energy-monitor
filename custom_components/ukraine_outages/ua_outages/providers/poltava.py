@@ -117,6 +117,7 @@ def parse_result(payload: Any) -> Resolution:
 
 class PoltavaLookup(AddressLookup):
     hosts = frozenset({"www.poe.pl.ua"})
+    ukraine_only = True  # the same site as the schedule
     steps = (
         Step("Оберіть філію або дільницю Полтаваобленерго", browse=True, in_label=False),
         Step("Напишіть назву населеного пункту", "Полтава", browse=True),

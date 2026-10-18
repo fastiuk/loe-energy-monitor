@@ -143,6 +143,8 @@ class AddressLookup(ABC):
     max_bytes: ClassVar[int] = MAX_BYTES
     #: Shortest query the directory searches by (for steps that are not ``browse``).
     min_query: ClassVar[int] = 2
+    #: Like ``Provider.ukraine_only``: the site does not answer connections from abroad.
+    ukraine_only: ClassVar[bool] = False
     steps: tuple[Step, ...] = ()
 
     @property

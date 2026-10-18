@@ -45,6 +45,8 @@ def test_every_lookup_has_a_live_case():
 def test_address_lookup(operator_id):
     op = operator(operator_id)
     lookup = op.lookup
+    if lookup.ukraine_only and os.environ.get("GITHUB_ACTIONS") == "true":
+        pytest.skip("the site blocks requests from outside Ukraine")
 
     async def search():
         async with new_session() as session:

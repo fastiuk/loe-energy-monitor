@@ -58,7 +58,8 @@
     "abort": {
       "already_configured": "This group (or address) is already added.",
       "cannot_connect": "Could not reach the operator's directory. Try again later.",
-      "no_group": "This address is in no outage group ({other})."
+      "no_group": "This address is in no outage group ({other}).",
+      "occupied": "{region} is temporarily occupied. Schedules will be here once Ukraine returns home 🇺🇦"
     }
   },
   "options": {

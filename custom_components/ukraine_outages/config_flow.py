@@ -64,8 +64,11 @@ class OutagesConfigFlow(ConfigFlow, domain=DOMAIN):
     # Region and operator
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        regions = [r for r in REGIONS if _operators(r)]
+        # Occupied territories are listed too, so everyone finds their home; they get a stub.
+        regions = [r for r in REGIONS if r.occupied or _operators(r)]
         if user_input is not None and (region := REGIONS_BY_ID.get(user_input[CONF_REGION])) in regions:
+            if region.occupied:
+                return self.async_abort(reason="occupied", description_placeholders={"region": region.name})
             self._region = region
             operators = _operators(region)
             if len(operators) == 1:
@@ -75,7 +78,7 @@ class OutagesConfigFlow(ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {vol.Required(CONF_REGION): _dropdown([SelectOptionDict(value=r.id, label=r.name) for r in regions])}
         )
-        unavailable = ", ".join(r.name for r in REGIONS if not _operators(r))
+        unavailable = ", ".join(r.name for r in REGIONS if not r.occupied and not _operators(r))
         return self.async_show_form(
             step_id="user", data_schema=schema, description_placeholders={"unavailable": unavailable}
         )

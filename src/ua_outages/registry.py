@@ -29,6 +29,8 @@ STANDARD_GROUPS: tuple[str, ...] = tuple(f"{q}.{s}" for q in range(1, 7) for s i
 
 NOT_PUBLISHED = "Оператор не публікує графіків погодинних відключень."
 LATER = "Графіки цього оператора додамо згодом."
+#: Temporarily occupied territories: shown so every Ukrainian finds their home, never fetched.
+OCCUPIED = "Тимчасово окупована територія. Буде доступно після повернення додому 🇺🇦"
 
 
 @dataclass(frozen=True)
@@ -66,9 +68,13 @@ class Region:
     id: str
     name: str
     operators: tuple[str, ...]
+    #: Temporarily occupied as a whole: no sources, and occupation authorities' sites are
+    #: never read (see ``http.FORBIDDEN_SUFFIXES``).
+    occupied: bool = False
 
 
 OPERATORS: tuple[Operator, ...] = (
+    Operator("crimea", "Автономна Республіка Крим", "crimea", "", note=OCCUPIED),
     Operator(
         "dtek-kem", "ДТЕК Київські електромережі", "kyiv", "https://www.dtek-kem.com.ua/ua/shutdowns",
         sources=(Yasno(region=25, dso=902), OutageDataUa("kyiv")),
@@ -181,10 +187,12 @@ OPERATORS: tuple[Operator, ...] = (
         group_label="група",
     ),
     Operator("chernihiv-oe", "Чернігівобленерго", "chernihivska", "https://chernihivoblenergo.com.ua/blackouts", note=LATER),
+    Operator("sevastopol", "м. Севастополь", "sevastopol", "", note=OCCUPIED),
 )  # fmt: skip
 
 REGIONS: tuple[Region, ...] = (
     Region("kyiv", "м. Київ", ("dtek-kem",)),
+    Region("crimea", "АР Крим", ("crimea",), occupied=True),
     Region("kyivska", "Київська", ("dtek-krem",)),
     Region("vinnytska", "Вінницька", ("vinnytsia-oe",)),
     Region("volynska", "Волинська", ("volyn-oe",)),
@@ -209,6 +217,7 @@ REGIONS: tuple[Region, ...] = (
     Region("cherkaska", "Черкаська", ("cherkasy-oe",)),
     Region("chernivetska", "Чернівецька", ("chernivtsi-oe",)),
     Region("chernihivska", "Чернігівська", ("chernihiv-oe",)),
+    Region("sevastopol", "м. Севастополь", ("sevastopol",), occupied=True),
 )
 
 OPERATORS_BY_ID: dict[str, Operator] = {o.id: o for o in OPERATORS}

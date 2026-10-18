@@ -8,7 +8,7 @@ import aiohttp
 import pytest
 from aiohttp import web
 
-from ua_outages.http import FetchError, Fetcher
+from ua_outages.http import FetchError, Fetcher, forbidden_host
 from ua_outages.providers._html import parse_html
 from ua_outages.providers._text import MAX_TEXT, html_lines, parse_group_text, parse_intervals
 from ua_outages.providers.loe import _image_url
@@ -150,3 +150,16 @@ def test_deeply_nested_json_is_a_fetch_error():
     deep = Response("https://x.invalid/", 200, CIMultiDict(), b"[" * 1_000_000, "utf-8")
     with pytest.raises(FetchError):
         deep.json()
+
+
+def test_fetcher_never_contacts_the_aggressors_domains():
+    async def run():
+        async with aiohttp.ClientSession() as session:
+            hosts = ["krymenergo.ru", "example.su", "xn--80aswg.xn--p1ai", "сайт.рф", "RU", "evil.RU."]
+            fetcher = Fetcher(session, hosts)
+            for host in hosts:
+                with pytest.raises(FetchError, match="not allowed"):
+                    await fetcher.get(f"https://{host}/")
+
+    asyncio.run(run())
+    assert not forbidden_host("api.loe.lviv.ua") and not forbidden_host("rubizhne.example.com")

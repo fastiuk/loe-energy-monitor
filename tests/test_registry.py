@@ -1,13 +1,15 @@
 import re
 
-from ua_outages.registry import OPERATORS, OPERATORS_BY_ID, REGIONS, REGIONS_BY_ID
+from ua_outages.http import forbidden_host
+from ua_outages.registry import OCCUPIED, OPERATORS, OPERATORS_BY_ID, REGIONS, REGIONS_BY_ID
 
 ID_RE = re.compile(r"[a-z][a-z0-9-]{1,19}")
 
 
 def test_ids_are_unique_and_short():
     assert len(OPERATORS_BY_ID) == len(OPERATORS)
-    assert len(REGIONS_BY_ID) == len(REGIONS) == 25
+    # 24 oblasts, the Autonomous Republic of Crimea, Kyiv and Sevastopol.
+    assert len(REGIONS_BY_ID) == len(REGIONS) == 27
     for item in (*OPERATORS, *REGIONS):
         assert ID_RE.fullmatch(item.id), item.id
 
@@ -51,3 +53,21 @@ def test_address_lookups_and_per_address_operators():
     assert not OPERATORS_BY_ID["lviv-oe"].by_address
     # A search's buttons carry an 8-character token and an index: "p:0123abcd:23".
     assert len("p:0123abcd:23") <= 64
+
+
+def test_occupied_territories_are_listed_but_never_fetched():
+    occupied = [r for r in REGIONS if r.occupied]
+    assert {r.id for r in occupied} == {"crimea", "sevastopol"}
+    for region in occupied:
+        for operator_id in region.operators:
+            operator = OPERATORS_BY_ID[operator_id]
+            assert not operator.sources and operator.lookup is None and not operator.site
+            assert operator.note == OCCUPIED
+
+
+def test_no_source_points_at_the_aggressors_domains():
+    for operator in OPERATORS:
+        hosts = [h for s in operator.sources for h in s.hosts]
+        hosts += list(operator.lookup.hosts) if operator.lookup else []
+        for host in hosts:
+            assert not forbidden_host(host), f"{operator.id}: {host}"

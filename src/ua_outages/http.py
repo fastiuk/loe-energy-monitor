@@ -26,6 +26,9 @@ from yarl import URL
 USER_AGENT = "ukraine-energy-monitor/0.3 (+https://github.com/fastiuk/ukraine-energy-monitor)"
 #: The biggest real page (a DTEK shutdowns page) is about 1 MB.
 MAX_BYTES = 5 * 1024 * 1024
+#: Never contacted, whatever a source declares: the aggressor's domains, where the occupation
+#: authorities of Crimea and other occupied territories publish ("рф" is "xn--p1ai").
+FORBIDDEN_SUFFIXES = (".ru", ".su", ".xn--p1ai", ".рф")
 MAX_REDIRECTS = 3
 _REDIRECTS = {301, 302, 303, 307, 308}
 
@@ -48,6 +51,11 @@ def new_session() -> aiohttp.ClientSession:
         connector=aiohttp.TCPConnector(limit=20, limit_per_host=2),
         cookie_jar=aiohttp.DummyCookieJar(),
     )
+
+
+def forbidden_host(host: str | None) -> bool:
+    name = (host or "").lower().rstrip(".")
+    return any(name == suffix[1:] or name.endswith(suffix) for suffix in FORBIDDEN_SUFFIXES)
 
 
 class FetchError(Exception):
@@ -98,7 +106,7 @@ class Fetcher:
 
     def allowed(self, url: str | URL) -> bool:
         url = URL(url)
-        return url.scheme in self._schemes and url.host in self._hosts
+        return url.scheme in self._schemes and url.host in self._hosts and not forbidden_host(url.host)
 
     async def get(
         self,

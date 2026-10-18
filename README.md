@@ -22,11 +22,13 @@ Telegram-бот на цих даних: **[@grafik_ua_bot](https://t.me/grafik_u
 джерело відповідає у відомому форматі; **резервне джерело** — основне не відповідає, але працює
 запасне; **перевіряється лише з України** — сайт не відповідає серверам GitHub за кордоном (з
 домашнього підключення в Україні працює); **згодом** / **не публікує** / **недоступно** — джерела
-поки немає. 🔎 — чергу можна знайти за адресою.
+поки немає; **тимчасово окупована** — АР Крим і Севастополь у списку, щоб кожен знайшов свій дім:
+графіки буде після повернення додому 🇺🇦. 🔎 — чергу можна знайти за адресою.
 
 | Область | Оператор | Статус | 🔎 |
 |---|---|---|---|
 | м. Київ | ДТЕК Київські електромережі | [![dtek-kem](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fdtek-kem.json&label=&cacheSeconds=1800)](docs/SOURCES.md) | 🔎 |
+| АР Крим | — | [![crimea](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fcrimea.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
 | Київська | ДТЕК Київські регіональні електромережі | [![dtek-krem](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fdtek-krem.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
 | Вінницька | Вінницяобленерго | [![vinnytsia-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fvinnytsia-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
 | Волинська | Волиньобленерго | [![volyn-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fvolyn-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
@@ -52,6 +54,7 @@ Telegram-бот на цих даних: **[@grafik_ua_bot](https://t.me/grafik_u
 | Черкаська | Черкасиобленерго | [![cherkasy-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fcherkasy-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
 | Чернівецька | Чернівціобленерго | [![chernivtsi-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fchernivtsi-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
 | Чернігівська | Чернігівобленерго | [![chernihiv-oe](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fchernihiv-oe.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
+| м. Севастополь | — | [![sevastopol](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffastiuk%2Fukraine-energy-monitor%2Fstatus%2Fsevastopol.json&label=&cacheSeconds=1800)](docs/SOURCES.md) |  |
 
 Де і як береться графік кожного оператора — [docs/SOURCES.md](docs/SOURCES.md). Захист сайтів від
 ботів не обходимо: для Київщини, де сайт ДТЕК закритий, дані беруться з відкритого дзеркала
@@ -113,7 +116,7 @@ automation:
 ## Бібліотека `ua_outages`
 
 ```bash
-pip install "ukraine-energy-monitor @ https://github.com/fastiuk/ukraine-energy-monitor/archive/refs/tags/v0.3.0.tar.gz"
+pip install "ukraine-energy-monitor @ https://github.com/fastiuk/ukraine-energy-monitor/archive/refs/tags/v0.3.1.tar.gz"
 ```
 
 ```python

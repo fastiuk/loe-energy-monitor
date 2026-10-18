@@ -19,7 +19,7 @@ from pathlib import Path
 
 from ua_outages import AddressSource, Fetcher, SourceBlocked, now_kyiv
 from ua_outages.http import new_session, redact
-from ua_outages.registry import LATER, NOT_PUBLISHED, OPERATORS, REGIONS_BY_ID, Operator
+from ua_outages.registry import LATER, NOT_PUBLISHED, OPERATORS_BY_ID, REGIONS, REGIONS_BY_ID, Operator
 
 #: What a person would type at each step of the address search, for per-address sources.
 ADDRESSES = {"ternopil-oe": ["Тернопіль", "Руська", "1"]}
@@ -43,6 +43,12 @@ BLOCKED = Status("CI заблоковано захистом сайту", "yello
 NOT_YET = Status("згодом", "lightgrey")
 NONE = Status("не публікує", "lightgrey")
 UNAVAILABLE = Status("недоступно", "lightgrey")
+OCCUPIED = Status("тимчасово окупована — буде після повернення додому", "0057b7")
+
+
+def ordered() -> list[Operator]:
+    """Operators in the order of regions (Kyiv, Crimea, oblasts, Sevastopol)."""
+    return [OPERATORS_BY_ID[o] for region in REGIONS for o in region.operators]
 
 
 def label(op: Operator) -> str:
@@ -90,6 +96,8 @@ async def check_source(op: Operator, source, session, *, on_ci: bool) -> tuple[s
 
 
 def verdict(op: Operator, results: list[tuple[str, str]]) -> Status:
+    if REGIONS_BY_ID[op.region].occupied:
+        return OCCUPIED
     if not op.available:
         return NOT_YET if op.note == LATER else NONE if op.note == NOT_PUBLISHED else UNAVAILABLE
     kinds = [kind for kind, _ in results]
@@ -108,7 +116,7 @@ async def run(out: Path, *, on_ci: bool) -> bool:
     summary = {}
     healthy = True
     async with new_session() as session:
-        for op in OPERATORS:
+        for op in ordered():
             results = [await check_source(op, s, session, on_ci=on_ci) for s in op.sources]
             status = verdict(op, results)
             healthy &= not status.broken

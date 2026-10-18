@@ -42,6 +42,7 @@ async def test_region_without_lookup_goes_straight_to_groups(hass: HomeAssistant
     regions = [o["value"] for o in result["data_schema"].schema[CONF_REGION].config["options"]]
     assert "kyivska" in regions and "khersonska" not in regions  # no schedules there
     assert "Херсонська" in result["description_placeholders"]["unavailable"]
+    assert regions[1] == "crimea" and regions[-1] == "sevastopol"
 
     result = await _configure(hass, result, {CONF_REGION: "kyivska"})
     assert result["step_id"] == "group"
@@ -156,3 +157,10 @@ async def test_options_flow_keeps_the_sources_minimum(hass: HomeAssistant, mock_
     await hass.async_block_till_done()
     assert config_entry.options == {CONF_SCAN_INTERVAL: 15}
     assert config_entry.runtime_data.update_interval == timedelta(minutes=15)
+
+
+async def test_occupied_territories_are_listed_with_a_stub(hass: HomeAssistant, mock_fetch) -> None:
+    for region in ("crimea", "sevastopol"):
+        result = await _configure(hass, await _start(hass), {CONF_REGION: region})
+        assert result["type"] is FlowResultType.ABORT and result["reason"] == "occupied"
+    assert not mock_fetch.called

@@ -1,0 +1,132 @@
+{
+ "1.1": {
+  "today": {
+   "slots": [
+    {
+     "start": 0,
+     "end": 810,
+     "type": "NotPlanned"
+    },
+    {
+     "start": 810,
+     "end": 1020,
+     "type": "Definite"
+    },
+    {
+     "start": 1020,
+     "end": 1230,
+     "type": "NotPlanned"
+    },
+    {
+     "start": 1230,
+     "end": 1440,
+     "type": "Definite"
+    }
+   ],
+   "date": "2026-10-18T00:00:00+03:00",
+   "status": "ScheduleApplies"
+  },
+  "tomorrow": {
+   "slots": [
+    {
+     "start": 0,
+     "end": 1440,
+     "type": "NotPlanned"
+    }
+   ],
+   "date": "2026-10-19T00:00:00+03:00",
+   "status": "WaitingForSchedule"
+  },
+  "updatedOn": "2026-10-18T12:53:46+00:00"
+ },
+ "2.1": {
+  "today": {
+   "slots": [
+    {
+     "start": 0,
+     "end": 930,
+     "type": "NotPlanned"
+    },
+    {
+     "start": 930,
+     "end": 1110,
+     "type": "Definite"
+    },
+    {
+     "start": 1110,
+     "end": 1260,
+     "type": "NotPlanned"
+    },
+    {
+     "start": 1260,
+     "end": 1440,
+     "type": "Definite"
+    }
+   ],
+   "date": "2026-10-18T00:00:00+03:00",
+   "status": "ScheduleApplies"
+  },
+  "tomorrow": {
+   "slots": [
+    {
+     "start": 0,
+     "end": 1440,
+     "type": "NotPlanned"
+    }
+   ],
+   "date": "2026-10-19T00:00:00+03:00",
+   "status": "WaitingForSchedule"
+  },
+  "updatedOn": "2026-10-18T12:53:46+00:00"
+ },
+ "3.1": {
+  "today": {
+   "slots": [
+    {
+     "start": 0,
+     "end": 420,
+     "type": "NotPlanned"
+    },
+    {
+     "start": 420,
+     "end": 630,
+     "type": "Definite"
+    },
+    {
+     "start": 630,
+     "end": 930,
+     "type": "NotPlanned"
+    },
+    {
+     "start": 930,
+     "end": 1110,
+     "type": "Definite"
+    },
+    {
+     "start": 1110,
+     "end": 1290,
+     "type": "NotPlanned"
+    },
+    {
+     "start": 1290,
+     "end": 1440,
+     "type": "Definite"
+    }
+   ],
+   "date": "2026-10-18T00:00:00+03:00",
+   "status": "ScheduleApplies"
+  },
+  "tomorrow": {
+   "slots": [
+    {
+     "start": 0,
+     "end": 1440,
+     "type": "NotPlanned"
+    }
+   ],
+   "date": "2026-10-19T00:00:00+03:00",
+   "status": "WaitingForSchedule"
+  },
+  "updatedOn": "2026-10-18T12:53:46+00:00"
+ }
+}

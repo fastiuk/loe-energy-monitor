@@ -1,0 +1,229 @@
+{
+ "data": [
+  {
+   "cherga_n": "1.1",
+   "no_data": false,
+   "last_update": "Оновлено: 18.10.2026 14:30",
+   "lst_time_disc": [
+    {
+     "start_time": "22:00",
+     "end_time": "00:00",
+     "diff_time": "2 год. 00 хв."
+    }
+   ],
+   "text_time_munyv": "час, що пройшов",
+   "text_time_curent": "поточний час вимкнення",
+   "text_time_tom": "майбутній час вимкнення"
+  },
+  {
+   "cherga_n": "1.2",
+   "no_data": false,
+   "last_update": "Оновлено: 18.10.2026 14:30",
+   "lst_time_disc": [
+    {
+     "start_time": "20:00",
+     "end_time": "00:00",
+     "diff_time": "4 год. 00 хв."
+    }
+   ],
+   "text_time_munyv": "час, що пройшов",
+   "text_time_curent": "поточний час вимкнення",
+   "text_time_tom": "майбутній час вимкнення"
+  },
+  {
+   "cherga_n": "2.1",
+   "no_data": false,
+   "last_update": "Оновлено: 18.10.2026 14:30",
+   "lst_time_disc": [
+    {
+     "start_time": "18:00",
+     "end_time": "22:00",
+     "diff_time": "4 год. 00 хв."
+    }
+   ],
+   "text_time_munyv": "час, що пройшов",
+   "text_time_curent": "поточний час вимкнення",
+   "text_time_tom": "майбутній час вимкнення"
+  },
+  {
+   "cherga_n": "2.2",
+   "no_data": false,
+   "last_update": "Оновлено: 18.10.2026 14:30",
+   "lst_time_disc": [
+    {
+     "start_time": "16:00",
+     "end_time": "20:00",
+     "diff_time": "4 год. 00 хв."
+    }
+   ],
+   "text_time_munyv": "час, що пройшов",
+   "text_time_curent": "поточний час вимкнення",
+   "text_time_tom": "майбутній час вимкнення"
+  },
+  {
+   "cherga_n": "3.1",
+   "no_data": false,
+   "last_update": "Оновлено: 18.10.2026 14:30",
+   "lst_time_disc": [
+    {
+     "start_time": "14:00",
+     "end_time": "18:00",
+     "diff_time": "4 год. 00 хв."
+    },
+    {
+     "start_time": "20:00",
+     "end_time": "22:00",
+     "diff_time": "2 год. 00 хв."
+    }
+   ],
+   "text_time_munyv": "час, що пройшов",
+   "text_time_curent": "поточний час вимкнення",
+   "text_time_tom": "майбутній час вимкнення"
+  },
+  {
+   "cherga_n": "3.2",
+   "no_data": false,
+   "last_update": "Оновлено: 18.10.2026 14:30",
+   "lst_time_disc": [
+    {
+     "start_time": "12:00",
+     "end_time": "16:00",
+     "diff_time": "4 год. 00 хв."
+    },
+    {
+     "start_time": "18:00",
+     "end_time": "22:00",
+     "diff_time": "4 год. 00 хв."
+    }
+   ],
+   "text_time_munyv": "час, що пройшов",
+   "text_time_curent": "поточний час вимкнення",
+   "text_time_tom": "майбутній час вимкнення"
+  },
+  {
+   "cherga_n": "4.1",
+   "no_data": false,
+   "last_update": "Оновлено: 18.10.2026 14:30",
+   "lst_time_disc": [
+    {
+     "start_time": "10:00",
+     "end_time": "14:00",
+     "diff_time": "4 год. 00 хв."
+    },
+    {
+     "start_time": "16:00",
+     "end_time": "20:00",
+     "diff_time": "4 год. 00 хв."
+    }
+   ],
+   "text_time_munyv": "час, що пройшов",
+   "text_time_curent": "поточний час вимкнення",
+   "text_time_tom": "майбутній час вимкнення"
+  },
+  {
+   "cherga_n": "4.2",
+   "no_data": false,
+   "last_update": "Оновлено: 18.10.2026 14:30",
+   "lst_time_disc": [
+    {
+     "start_time": "09:30",
+     "end_time": "12:00",
+     "diff_time": "2 год. 30 хв."
+    },
+    {
+     "start_time": "14:00",
+     "end_time": "18:00",
+     "diff_time": "4 год. 00 хв."
+    },
+    {
+     "start_time": "20:00",
+     "end_time": "22:00",
+     "diff_time": "2 год. 00 хв."
+    }
+   ],
+   "text_time_munyv": "час, що пройшов",
+   "text_time_curent": "поточний час вимкнення",
+   "text_time_tom": "майбутній час вимкнення"
+  },
+  {
+   "cherga_n": "5.1",
+   "no_data": false,
+   "last_update": "Оновлено: 18.10.2026 14:30",
+   "lst_time_disc": [
+    {
+     "start_time": "09:30",
+     "end_time": "10:00",
+     "diff_time": "0 год. 30 хв."
+    },
+    {
+     "start_time": "12:00",
+     "end_time": "16:00",
+     "diff_time": "4 год. 00 хв."
+    },
+    {
+     "start_time": "18:00",
+     "end_time": "20:00",
+     "diff_time": "2 год. 00 хв."
+    }
+   ],
+   "text_time_munyv": "час, що пройшов",
+   "text_time_curent": "поточний час вимкнення",
+   "text_time_tom": "майбутній час вимкнення"
+  },
+  {
+   "cherga_n": "5.2",
+   "no_data": false,
+   "last_update": "Оновлено: 18.10.2026 14:30",
+   "lst_time_disc": [
+    {
+     "start_time": "10:00",
+     "end_time": "14:00",
+     "diff_time": "4 год. 00 хв."
+    },
+    {
+     "start_time": "16:00",
+     "end_time": "18:00",
+     "diff_time": "2 год. 00 хв."
+    }
+   ],
+   "text_time_munyv": "час, що пройшов",
+   "text_time_curent": "поточний час вимкнення",
+   "text_time_tom": "майбутній час вимкнення"
+  },
+  {
+   "cherga_n": "6.1",
+   "no_data": false,
+   "last_update": "Оновлено: 18.10.2026 14:30",
+   "lst_time_disc": [
+    {
+     "start_time": "09:30",
+     "end_time": "12:00",
+     "diff_time": "2 год. 30 хв."
+    },
+    {
+     "start_time": "14:30",
+     "end_time": "16:00",
+     "diff_time": "1 год. 30 хв."
+    }
+   ],
+   "text_time_munyv": "час, що пройшов",
+   "text_time_curent": "поточний час вимкнення",
+   "text_time_tom": "майбутній час вимкнення"
+  },
+  {
+   "cherga_n": "6.2",
+   "no_data": false,
+   "last_update": "Оновлено: 18.10.2026 14:30",
+   "lst_time_disc": [
+    {
+     "start_time": "09:30",
+     "end_time": "10:00",
+     "diff_time": "0 год. 30 хв."
+    }
+   ],
+   "text_time_munyv": "час, що пройшов",
+   "text_time_curent": "поточний час вимкнення",
+   "text_time_tom": "майбутній час вимкнення"
+  }
+ ]
+}

@@ -1,0 +1,107 @@
+{
+ "@context": "/api/contexts/ArchiveGpvGraph",
+ "@id": "/api/archive_gpv_graphs",
+ "@type": "hydra:Collection",
+ "hydra:member": [
+  {
+   "@id": "/api/archive_gpv_graphs/618",
+   "@type": "ArchiveGpvGraph",
+   "id": 618,
+   "dateCreate": "2026-10-17T22:12:27+00:00",
+   "dateGraph": "2026-10-18T00:00:00+00:00",
+   "imageUrl": {
+    "@id": "/api/media_objects/625",
+    "@type": "https://schema.org/MediaObject",
+    "id": 625,
+    "contentUrl": "/media/2026/10/6ad3c89bb9049_GPV.png",
+    "uploadTimestamp": "2026-10-17T19:12:27+00:00",
+    "filePath": "6ad3c89bb9049_GPV.png"
+   },
+   "imageMobileUrl": {
+    "@id": "/api/media_objects/625",
+    "@type": "https://schema.org/MediaObject",
+    "id": 625,
+    "contentUrl": "/media/2026/10/6ad3c89bb9049_GPV.png",
+    "uploadTimestamp": "2026-10-17T19:12:27+00:00",
+    "filePath": "6ad3c89bb9049_GPV.png"
+   }
+  },
+  {
+   "@id": "/api/archive_gpv_graphs/617",
+   "@type": "ArchiveGpvGraph",
+   "id": 617,
+   "dateCreate": "2026-10-17T22:12:16+00:00",
+   "dateGraph": "2026-10-18T00:00:00+00:00",
+   "imageUrl": {
+    "@id": "/api/media_objects/624",
+    "@type": "https://schema.org/MediaObject",
+    "id": 624,
+    "contentUrl": "/media/2026/10/6ad3c890138e2_GPV.png",
+    "uploadTimestamp": "2026-10-17T19:12:16+00:00",
+    "filePath": "6ad3c890138e2_GPV.png"
+   },
+   "imageMobileUrl": {
+    "@id": "/api/media_objects/624",
+    "@type": "https://schema.org/MediaObject",
+    "id": 624,
+    "contentUrl": "/media/2026/10/6ad3c890138e2_GPV.png",
+    "uploadTimestamp": "2026-10-17T19:12:16+00:00",
+    "filePath": "6ad3c890138e2_GPV.png"
+   }
+  },
+  {
+   "@id": "/api/archive_gpv_graphs/616",
+   "@type": "ArchiveGpvGraph",
+   "id": 616,
+   "dateCreate": "2026-10-17T18:47:23+00:00",
+   "dateGraph": "2026-10-17T00:00:00+00:00",
+   "imageUrl": {
+    "@id": "/api/media_objects/623",
+    "@type": "https://schema.org/MediaObject",
+    "id": 623,
+    "contentUrl": "/media/2026/10/6ad3988b22570_GPV.png",
+    "uploadTimestamp": "2026-10-17T15:47:23+00:00",
+    "filePath": "6ad3988b22570_GPV.png"
+   },
+   "imageMobileUrl": {
+    "@id": "/api/media_objects/623",
+    "@type": "https://schema.org/MediaObject",
+    "id": 623,
+    "contentUrl": "/media/2026/10/6ad3988b22570_GPV.png",
+    "uploadTimestamp": "2026-10-17T15:47:23+00:00",
+    "filePath": "6ad3988b22570_GPV.png"
+   }
+  },
+  {
+   "@id": "/api/archive_gpv_graphs/615",
+   "@type": "ArchiveGpvGraph",
+   "id": 615,
+   "dateCreate": "2026-10-17T18:09:15+00:00",
+   "dateGraph": "2026-10-17T00:00:00+00:00",
+   "imageUrl": {
+    "@id": "/api/media_objects/622",
+    "@type": "https://schema.org/MediaObject",
+    "id": 622,
+    "contentUrl": "/media/2026/10/6ad38f9b5ea97_GPV.png",
+    "uploadTimestamp": "2026-10-17T15:09:15+00:00",
+    "filePath": "6ad38f9b5ea97_GPV.png"
+   },
+   "imageMobileUrl": {
+    "@id": "/api/media_objects/622",
+    "@type": "https://schema.org/MediaObject",
+    "id": 622,
+    "contentUrl": "/media/2026/10/6ad38f9b5ea97_GPV.png",
+    "uploadTimestamp": "2026-10-17T15:09:15+00:00",
+    "filePath": "6ad38f9b5ea97_GPV.png"
+   }
+  }
+ ],
+ "hydra:totalItems": 614,
+ "hydra:view": {
+  "@id": "/api/archive_gpv_graphs?page=1",
+  "@type": "hydra:PartialCollectionView",
+  "hydra:first": "/api/archive_gpv_graphs?page=1",
+  "hydra:last": "/api/archive_gpv_graphs?page=21",
+  "hydra:next": "/api/archive_gpv_graphs?page=2"
+ }
+}

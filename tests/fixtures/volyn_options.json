@@ -1,0 +1,32 @@
+{
+ "@context": "/api/contexts/Options",
+ "@id": "/api/options",
+ "@type": "hydra:Collection",
+ "hydra:member": [
+  {
+   "@id": "/api/options/7",
+   "@type": "Options",
+   "id": 7,
+   "option_key": "pw_gpv_image_today",
+   "value": "/media/2026/10/6ad3c89bb9049_GPV.png",
+   "date": "2026-10-17T22:10:27+00:00",
+   "name": "",
+   "optionKey": "pw_gpv_image_today"
+  },
+  {
+   "@id": "/api/options/8",
+   "@type": "Options",
+   "id": 8,
+   "option_key": "pw_gpv_image_tomorrow",
+   "value": "",
+   "date": "2026-10-17T22:10:27+00:00",
+   "name": "",
+   "optionKey": "pw_gpv_image_tomorrow"
+  }
+ ],
+ "hydra:totalItems": 2,
+ "hydra:view": {
+  "@id": "/api/options?option_key%5B%5D=pw_gpv_image_today&option_key%5B%5D=pw_gpv_image_tomorrow",
+  "@type": "hydra:PartialCollectionView"
+ }
+}

@@ -1,12 +1,14 @@
 [project]
-name = "loe-energy-monitor"
-version = "0.2.1"
-description = "Графіки погодинних відключень Львівобленерго: завантаження, розбір і порівняння версій"
+name = "ukraine-energy-monitor"
+version = "0.3.0"
+description = "Графіки погодинних відключень світла для всіх областей України: джерела, розбір, Home Assistant"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
     "aiohttp>=3.9",
+    "certifi>=2024.2.2",
+    "pillow>=11",
     "tzdata>=2024.1",
 ]
 
@@ -18,8 +20,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/loe_core"]
+packages = ["src/ua_outages"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
+norecursedirs = ["tests/ha"]

@@ -6,6 +6,7 @@
 [![Release](https://img.shields.io/github/v/release/fastiuk/loe-energy-monitor?sort=semver&logo=github&logoColor=white)](https://github.com/fastiuk/loe-energy-monitor/releases)
 [![HACS](https://img.shields.io/badge/HACS-custom-41BDF5?logo=homeassistantcommunitystore&logoColor=white)](#home-assistant)
 [![Telegram](https://img.shields.io/badge/Telegram-@loe__grafik__bot-26A5E4?logo=telegram&logoColor=white)](https://t.me/loe_grafik_bot)
+[![Bot image](https://img.shields.io/docker/v/fastiuk/loe-grafik-bot?sort=semver&label=bot%20image&logo=docker&logoColor=white)](https://hub.docker.com/r/fastiuk/loe-grafik-bot)
 [![License](https://img.shields.io/github/license/fastiuk/loe-energy-monitor)](LICENSE)
 
 Графіки погодинних відключень світла Львівобленерго
@@ -23,6 +24,10 @@
 - працює в особистих чатах, групах і каналах.
 
 Відкрийте бота, натисніть **Start** і оберіть свою чергу.
+
+Код бота: [fastiuk/loe-grafik-bot](https://github.com/fastiuk/loe-grafik-bot) ·
+Docker-образ для власного екземпляра: [fastiuk/loe-grafik-bot](https://hub.docker.com/r/fastiuk/loe-grafik-bot)
+(у тому числі як OCI-контейнер Proxmox без Docker).
 
 ## Home Assistant
 
@@ -103,7 +108,8 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-Ще є `diff_schedules` і `merge_schedules`, щоб знаходити зміни між двома завантаженнями.
+Ще є `diff_schedules` і `merge_schedules`, щоб знаходити зміни між двома завантаженнями —
+так їх використовує [бот](https://github.com/fastiuk/loe-grafik-bot).
 
 ## Структура
 

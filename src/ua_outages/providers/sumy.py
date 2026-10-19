@@ -7,7 +7,10 @@
 
 The API serves only the current day and carries no date apart from ``last_update``, so the
 schedule is taken as today's while that stamp is recent.
-TODO: check on a live day what it serves right after midnight and after an evening update.
+
+Not in the registry since 19.10.2026: the API answers 403 ("X-Debug-API: HIT-PROTECTED-SUB-API")
+to everything but the operator's own site, and access controls are not worked around. Kept for
+when it opens again; then also check what it serves after an evening update for tomorrow.
 """
 
 from __future__ import annotations

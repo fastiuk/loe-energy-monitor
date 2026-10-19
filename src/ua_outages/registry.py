@@ -17,7 +17,6 @@ from .providers.mykolaiv import Mykolaiv, MykolaivLookup
 from .providers.poltava import Poltava, PoltavaLookup
 from .providers.prykarpattia import Prykarpattia
 from .providers.rivne import Rivne
-from .providers.sumy import Sumy
 from .providers.ternopil import Ternopil, TernopilLookup
 from .providers.volyn import Volyn
 from .providers.yasno import Yasno, YasnoLookup
@@ -157,8 +156,10 @@ OPERATORS: tuple[Operator, ...] = (
     ),
     Operator(
         "sumy-oe", "Сумиобленерго", "sumska", "https://www.soe.com.ua/consumers/shutdowns",
-        sources=(Sumy(),),
-        note="Сумиобленерго публікує лише графік на поточний день.",
+        # Since 19.10.2026 the API answers only the operator's own site (403 to anyone else).
+        # Not worked around; providers.sumy.Sumy parses it if it opens again.
+        note="Сумиобленерго закрив свої дані для сторонніх сервісів. Графік — на сайті "
+        "soe.com.ua (Споживачам → Відключення) і в застосунку E-Svitlo.",
     ),
     Operator(
         "ternopil-oe", "Тернопільобленерго", "ternopilska", "https://poweron.toe.com.ua",

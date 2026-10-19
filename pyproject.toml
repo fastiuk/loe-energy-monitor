@@ -1,6 +1,6 @@
 [project]
 name = "ukraine-energy-monitor"
-version = "0.3.2"
+version = "0.3.3"
 description = "Графіки погодинних відключень світла для всіх областей України: джерела, розбір, Home Assistant"
 readme = "README.md"
 license = "MIT"

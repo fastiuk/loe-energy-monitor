@@ -147,7 +147,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--out", type=Path, default=Path("status"))
     args = parser.parse_args()
-    healthy = asyncio.run(run(args.out, on_ci=os.environ.get("GITHUB_ACTIONS") == "true"))
+    # GitHub's own runners are abroad; a self-hosted runner in Ukraine sets UKRAINE_NETWORK=1.
+    abroad = os.environ.get("GITHUB_ACTIONS") == "true" and os.environ.get("UKRAINE_NETWORK") != "1"
+    healthy = asyncio.run(run(args.out, on_ci=abroad))
     sys.exit(0 if healthy else 1)
 
 

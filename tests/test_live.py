@@ -15,6 +15,9 @@ from ua_outages.registry import OPERATORS, available_operators
 
 pytestmark = pytest.mark.skipif(os.environ.get("LIVE") != "1", reason="set LIVE=1 to query the real sources")
 
+#: GitHub's own runners are abroad, where some sites don't answer. A self-hosted runner in
+#: Ukraine sets UKRAINE_NETWORK=1 and checks every site.
+ABROAD = os.environ.get("GITHUB_ACTIONS") == "true" and os.environ.get("UKRAINE_NETWORK") != "1"
 #: Per-address sources are checked through a looked-up address below.
 CASES = [(o, s) for o in available_operators() for s in o.sources if not isinstance(s, AddressSource)]
 #: What a person would type at each step of the search; the best match is taken.
@@ -45,7 +48,7 @@ def test_every_lookup_has_a_live_case():
 def test_address_lookup(operator_id):
     op = operator(operator_id)
     lookup = op.lookup
-    if lookup.ukraine_only and os.environ.get("GITHUB_ACTIONS") == "true":
+    if lookup.ukraine_only and ABROAD:
         pytest.skip("the site blocks requests from outside Ukraine")
 
     async def search():
@@ -80,7 +83,7 @@ def test_address_lookup(operator_id):
 
 @pytest.mark.parametrize("operator, source", CASES, ids=[f"{o.id}-{s.name}" for o, s in CASES])
 def test_source(operator, source):
-    if source.ukraine_only and os.environ.get("GITHUB_ACTIONS") == "true":
+    if source.ukraine_only and ABROAD:
         pytest.skip("the site blocks requests from outside Ukraine; the bot's own alerts cover it")
     async def fetch():
         async with new_session() as session:
@@ -91,7 +94,7 @@ def test_source(operator, source):
     except SourceBlocked as err:
         # Bot protection on GitHub's IPs comes and goes; it says nothing about the format,
         # and the bot falls back to the operator's next source when it happens.
-        if os.environ.get("GITHUB_ACTIONS") == "true":
+        if ABROAD:
             pytest.skip(f"blocked by the site's bot protection: {err}")
         raise
     unknown_groups = set()

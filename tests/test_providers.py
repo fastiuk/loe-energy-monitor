@@ -31,6 +31,7 @@ from ua_outages.providers import (
     sumy,
     volyn,
     yasno,
+    zakarpattia,
     zaporizhzhia,
     zhytomyr,
 )
@@ -569,3 +570,28 @@ def test_chernihiv_posts():
         chernihiv.parse_channel("<html>Just a moment...</html>")
     later = asyncio.run(chernihiv.Chernihiv().fetch(RoutedHttp({"/s/chernigivoblenergo": fixture_text("chernihiv_tg.html")}), kyiv(OCT18, 9)))
     assert list(later) == [OCT18]  # only today and tomorrow
+
+
+def test_zakarpattia_watches_for_a_schedule():
+    def options(today="", tomorrow=""):
+        return {"hydra:member": [
+            {"option_key": "successful_last_synk", "value": ""},
+            {"option_key": "pw_gpv_image_today", "value": today},
+            {"option_key": "pw_gpv_image_tomorrow", "value": tomorrow},
+        ]}  # fmt: skip
+
+    async def fetch(payload):
+        class Http:
+            async def get(self, url, *, headers=None):
+                assert url.startswith(zakarpattia.BASE_URL + "/api/options?")
+                return SimpleNamespace(json=lambda: payload)
+
+        return await zakarpattia.Zakarpattia().fetch(Http(), kyiv(OCT18, 9))
+
+    assert asyncio.run(fetch(options())) == {}  # not applied: nothing published
+    # An image means schedules are applied, in a format nobody has seen: fail loudly, never guess.
+    with pytest.raises(SourceFormatError, match="format is not known"):
+        asyncio.run(fetch(options(tomorrow="/media/2026/10/abc_GPV.png")))
+    for hostile in ({"hydra:member": []}, ["x"], options(today="https://evil.example/a.png")):
+        with pytest.raises(SourceFormatError):
+            asyncio.run(fetch(hostile))

@@ -24,6 +24,7 @@ from .providers.rivne import Rivne
 from .providers.ternopil import Ternopil, TernopilLookup
 from .providers.volyn import Volyn
 from .providers.yasno import Yasno, YasnoLookup
+from .providers.zakarpattia import Zakarpattia
 from .providers.zaporizhzhia import Zaporizhzhia
 from .providers.zhytomyr import Zhytomyr, ZhytomyrLookup
 
@@ -123,8 +124,9 @@ OPERATORS: tuple[Operator, ...] = (
     Operator(
         "zakarpattia-oe", "Закарпаттяобленерго", "zakarpatska",
         "https://zakarpat.energy/customers/break-in-electricity-supply/schedule/",
-        note="Закарпаттяобленерго зараз не застосовує графіків погодинних відключень. "
-        "Коли почне — додамо.",
+        sources=(Zakarpattia(),),
+        note="Закарпаттяобленерго зараз не застосовує графіків погодинних відключень. Щойно почне "
+        "публікувати графік, бот це помітить.",
     ),
     Operator(
         "zaporizhzhia-oe", "Запоріжжяобленерго", "zaporizka", "https://www.zoe.com.ua/outage/",

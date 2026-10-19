@@ -198,6 +198,8 @@ class OutagesConfigFlow(ConfigFlow, domain=DOMAIN):
             self._path.pop()
             return self.async_abort(reason="cannot_connect")
         groups = tuple(g for g in resolution.groups if g in op.groups)
+        if not groups and resolution.reason:
+            return self.async_abort(reason="no_group_now", description_placeholders={"reason": _md(resolution.reason)})
         if not groups or (op.by_address and not resolution.address):
             return self.async_abort(
                 reason="no_group", description_placeholders={"other": _md(", ".join(resolution.other)) or "—"}

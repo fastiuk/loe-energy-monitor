@@ -30,6 +30,7 @@ ADDRESSES = {
     "poltava-oe": ["Полтавська об", "Полтава", "Соборності", "10"],
     "zhytomyr-oe": ["Житомирський", "Житомир", "Київська", "5"],
     "ternopil-oe": ["Тернопіль", "Руська", "1"],
+    "vinnytsia-oe": ["Вінниця", "Магістратська", "2"],  # the oblenergo's own office
 }
 
 
@@ -70,7 +71,8 @@ def test_address_lookup(operator_id):
 
     path, resolution, schedules = asyncio.run(search())
     address = ", ".join(c.label for c in path)
-    assert resolution.groups, f"{operator_id}: {address} is in no group ({resolution.other})"
+    # Some operators show an address's group only while schedules apply: they say why.
+    assert resolution.groups or resolution.reason, f"{operator_id}: {address} is in no group ({resolution.other})"
     assert set(resolution.groups) <= set(op.groups), f"{operator_id}: unknown groups {resolution.groups}"
     line = f"- **{operator_id}** адреса: {address} → {', '.join(resolution.groups)}"
     if schedules is not None:

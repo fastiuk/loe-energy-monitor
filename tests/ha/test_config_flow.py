@@ -179,3 +179,16 @@ async def test_directory_text_is_shown_literally(hass: HomeAssistant, mock_fetch
     escaped = r"\!\[x\]\(https://evil.example/t.png\) \[тут\]\(https://evil.example\) \*\*вул.\*\* \<img src=x\>"
     assert chosen == escaped
     assert result["description_placeholders"] == {"other": escaped}
+
+
+async def test_address_without_a_group_for_now_says_why(hass: HomeAssistant, mock_fetch) -> None:
+    """A per-address operator that shows groups only while schedules apply explains that."""
+    why = "Чергу видно лише тоді, коли діють графіки [детальніше](https://evil.example)"
+    options, resolve = _lookup("dtek-kem", [[Choice("1", "вул. А")], [Choice("2", "1")]], Resolution((), reason=why))
+    with options, resolve:
+        result = await _configure(hass, await _start(hass), {CONF_REGION: "kyiv"})
+        result = await _configure(hass, result, {"next_step_id": "address"})
+        result = await _configure(hass, result, {CONF_QUERY: "вул. А"})
+        result = await _configure(hass, result, {CONF_QUERY: "1"})
+    assert result["type"] is FlowResultType.ABORT and result["reason"] == "no_group_now"
+    assert result["description_placeholders"] == {"reason": r"Чергу видно лише тоді, коли діють графіки \[детальніше\]\(https://evil.example\)"}

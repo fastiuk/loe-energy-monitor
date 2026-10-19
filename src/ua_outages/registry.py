@@ -22,6 +22,7 @@ from .providers.poltava import Poltava, PoltavaLookup
 from .providers.prykarpattia import Prykarpattia
 from .providers.rivne import Rivne
 from .providers.ternopil import Ternopil, TernopilLookup
+from .providers.vinnytsia import Vinnytsia, VinnytsiaLookup
 from .providers.volyn import Volyn
 from .providers.yasno import Yasno, YasnoLookup
 from .providers.zakarpattia import Zakarpattia
@@ -93,8 +94,11 @@ OPERATORS: tuple[Operator, ...] = (
     ),
     Operator(
         "vinnytsia-oe", "Вінницяобленерго", "vinnytska", "https://www.voe.com.ua/disconnection/detailed",
-        note="Вінницяобленерго показує графік лише для окремої адреси на своєму сайті, "
-        "тож бот не може його отримати.",
+        sources=(Vinnytsia(),),
+        lookup=VinnytsiaLookup(),
+        note="Вінницяобленерго показує графік лише для конкретної адреси, тож бот підписує за адресою: "
+        "знайдіть свій будинок, і бот стежитиме за чергою цієї адреси. Чергу сайт показує, лише коли "
+        "діють графіки погодинних відключень.",
     ),
     Operator(
         "volyn-oe", "Волиньобленерго", "volynska",

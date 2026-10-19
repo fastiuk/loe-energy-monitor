@@ -23,7 +23,7 @@ from ua_outages.http import new_session, redact
 from ua_outages.registry import LATER, NOT_PUBLISHED, OPERATORS_BY_ID, REGIONS, REGIONS_BY_ID, Operator
 
 #: What a person would type at each step of the address search, for per-address sources.
-ADDRESSES = {"ternopil-oe": ["Тернопіль", "Руська", "1"]}
+ADDRESSES = {"ternopil-oe": ["Тернопіль", "Руська", "1"], "vinnytsia-oe": ["Вінниця", "Магістратська", "2"]}
 #: Short names for regions with more than one operator.
 SHORT = {"dtek-dnem": "ДТЕК", "cek": "ЦЕК"}
 

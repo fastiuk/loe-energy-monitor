@@ -126,6 +126,9 @@ class Resolution:
     other: tuple[str, ...] = ()
     #: For operators whose source works per address: the key ``AddressSource`` needs.
     address: str | None = None
+    #: Why the address has no group right now, said instead of "it is in none" (e.g. the
+    #: operator shows groups only while schedules apply).
+    reason: str | None = None
 
 
 class AddressLookup(ABC):

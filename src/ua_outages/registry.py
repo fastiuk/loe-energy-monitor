@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from .providers.base import AddressLookup, AddressSource, Provider
 from .providers.cherkasy import Cherkasy
+from .providers.chernihiv import Chernihiv
 from .providers.chernivtsi import Chernivtsi
 from .providers.dtek import DtekPage, OutageDataUa, cek_groups
 from .providers.kharkiv import Kharkiv
@@ -199,7 +200,12 @@ OPERATORS: tuple[Operator, ...] = (
         groups=tuple(str(n) for n in range(1, 13)),
         group_label="група",
     ),
-    Operator("chernihiv-oe", "Чернігівобленерго", "chernihivska", "https://chernihivoblenergo.com.ua/blackouts", note=LATER),
+    Operator(
+        "chernihiv-oe", "Чернігівобленерго", "chernihivska", "https://chernihivoblenergo.com.ua/blackouts",
+        sources=(Chernihiv(),),
+        note="Чернігівобленерго публікує години відключень лише картинкою: бот повідомляє, на який день "
+        "діє графік, дає посилання на картинку і пише текстові зміни для вашої черги.",
+    ),
     Operator("sevastopol", "м. Севастополь", "sevastopol", "", note=OCCUPIED),
 )  # fmt: skip
 

@@ -96,7 +96,7 @@ async def check_source(op: Operator, source, session, *, on_ci: bool) -> tuple[s
     for schedule in schedules.values():
         if extra := set(schedule.mentioned_groups()) - set(op.groups):
             return "error", f"unknown groups {sorted(extra)}"
-        if schedule.unknown:
+        if schedule.unknown and not source.hours_on_picture:
             return "error", f"unparsed groups {sorted(schedule.unknown)}"
     days = ", ".join(f"{d:%d.%m}" for d in schedules) or "nothing published"
     return "ok", days

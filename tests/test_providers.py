@@ -17,6 +17,7 @@ from ua_outages.http import FetchError
 from ua_outages.models import KYIV, DaySchedule
 from ua_outages.providers import (
     cherkasy,
+    chernihiv,
     chernivtsi,
     dtek,
     kharkiv,
@@ -523,3 +524,48 @@ def test_khmelnytskyi_fetch_reads_today_and_tomorrow_and_reuses_images():
     asyncio.run(source.fetch(http, kyiv(OCT17, 18, 5)))
     assert sum(call.url.endswith(".png") for call in http.calls) == 1  # unchanged image: not again
     assert asyncio.run(source.fetch(http, kyiv(OCT18, 9))) == {}  # 17.10 is over: nothing to show
+
+
+def test_chernihiv():
+    schedules = chernihiv.parse_channel(fixture_text("chernihiv_tg.html"))
+    assert list(schedules) == [date(2026, 10, 16), OCT17, OCT18]
+    # Hours are only on the picture: every group says so, with the post that has the picture.
+    s = schedules[OCT17]
+    assert s.groups == {} and sorted(s.unknown) == sorted(STANDARD_GROUPS)
+    assert s.image_url == "https://t.me/chernigivoblenergo/5556" and s.unknown["3.2"] == chernihiv.ON_PICTURE
+    # Later posts' change lines go to the groups they name, in order.
+    assert s.unknown["2.1"] == (
+        chernihiv.ON_PICTURE + "; зміни: З 01:30 до 02:00 додатково відключаються черги 1/1, 1/2, 2/1, 6/1 та 6/2; "
+        "До 03:00 продовжується відключення для черг 2/1, 2/2, 6/1 та 6/2"
+    )
+    assert s.updated_at == datetime(2026, 10, 17, 1, 42, 41, tzinfo=KYIV)
+    # «В оновленому графіку…» brings a new picture: changes before it are void, later ones count.
+    october16 = schedules[date(2026, 10, 16)]
+    assert october16.image_url.endswith("/5551")
+    assert october16.unknown["6.2"].endswith("зміни: З 17:00 додатково відключається черга 6/2")
+    assert schedules[OCT18].unknown["1.1"].endswith("До 11:30 додатково відключаються черги 1/1 і 1/2")
+
+
+def test_chernihiv_posts():
+    def page(*posts):
+        items = "".join(
+            f'<div class="tgme_widget_message" data-post="chernigivoblenergo/{n}"><div class="tgme_widget_message_text">'
+            f'{text}</div><time datetime="{when}"></time></div>'
+            for n, when, text in posts
+        )
+        return f'<section class="tgme_channel_history">{items}</section>'
+
+    # Around New Year the day is the nearest one: 1 січня posted on 31.12 is next year's.
+    s = chernihiv.parse_channel(page((1, "2026-12-31T19:00:00+00:00", "1 січня в області діятиме Графік погодинних відключень")))
+    assert list(s) == [date(2027, 1, 1)]
+    # Lines without an hour or a group, and posts about other things, change nothing.
+    s = chernihiv.parse_channel(page(
+        (1, "2026-10-16T18:00:00+00:00", "17 жовтня в області діятиме Графік погодинних відключень"),
+        (2, "2026-10-17T06:00:00+00:00", "маємо зміни у Графіку погодинних відключень на 17 жовтня<br/>Просимо бути ощадливими, черга 1/1<br/>🕗 З 10:00 зміни для всіх"),
+        (3, "2026-10-17T07:00:00+00:00", "Знеструмлено 4,8 тисячі абонентів, черга 2/1 о 10:00"),
+    ))  # fmt: skip
+    assert set(s[OCT17].unknown.values()) == {chernihiv.ON_PICTURE}
+    with pytest.raises(SourceFormatError):
+        chernihiv.parse_channel("<html>Just a moment...</html>")
+    later = asyncio.run(chernihiv.Chernihiv().fetch(RoutedHttp({"/s/chernigivoblenergo": fixture_text("chernihiv_tg.html")}), kyiv(OCT18, 9)))
+    assert list(later) == [OCT18]  # only today and tomorrow

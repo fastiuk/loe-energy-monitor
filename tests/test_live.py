@@ -105,4 +105,5 @@ def test_source(operator, source):
         unknown_groups |= set(schedule.unknown)
         lines.append(f"{day:%d.%m}: {len(schedule.groups)} груп, нерозпізнано {len(schedule.unknown)}")
     _summary(f"- **{operator.id}** / {source.name}: " + ("; ".join(lines) or "графіків немає"))
-    assert not unknown_groups, f"{operator.id}: unparsed groups {sorted(unknown_groups)}"
+    if not source.hours_on_picture:
+        assert not unknown_groups, f"{operator.id}: unparsed groups {sorted(unknown_groups)}"

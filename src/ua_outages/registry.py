@@ -12,6 +12,9 @@ from .providers.cherkasy import Cherkasy
 from .providers.chernivtsi import Chernivtsi
 from .providers.dtek import DtekPage, OutageDataUa, cek_groups
 from .providers.kharkiv import Kharkiv
+from .providers.khmelnytskyi import Khmelnytskyi
+from .providers.kirovohrad import CHANNELS as KIROVOHRAD_CHANNELS
+from .providers.kirovohrad import Kirovohrad
 from .providers.loe import Loe, LoeLookup
 from .providers.mykolaiv import Mykolaiv, MykolaivLookup
 from .providers.poltava import Poltava, PoltavaLookup
@@ -130,7 +133,13 @@ OPERATORS: tuple[Operator, ...] = (
         "prykarpattia-oe", "Прикарпаттяобленерго", "ivano-frankivska", "https://svitlo.oe.if.ua",
         sources=(Prykarpattia(),),
     ),
-    Operator("kirovohrad-oe", "Кіровоградобленерго", "kirovohradska", "https://kiroe.com.ua/electricity-blackout", note=LATER),
+    Operator(
+        "kirovohrad-oe", "Кіровоградобленерго", "kirovohradska", "https://kiroe.com.ua/electricity-blackout",
+        # The site's own data is behind a Cloudflare challenge; its official district channels
+        # post the same schedule as text.
+        sources=tuple(Kirovohrad(channel) for channel in KIROVOHRAD_CHANNELS),
+        note="Кіровоградобленерго публікує графіки в офіційних Telegram-каналах; бот бере їх звідти.",
+    ),
     Operator("luhansk-leo", "Луганське енергетичне об'єднання", "luhanska", "", note=NOT_PUBLISHED),
     Operator(
         "lviv-oe", "Львівобленерго", "lvivska", "https://poweron.loe.lviv.ua",
@@ -176,7 +185,10 @@ OPERATORS: tuple[Operator, ...] = (
         "kherson-oe", "Херсонобленерго", "khersonska", "https://ksoe.com.ua",
         note="Херсонобленерго не публікує графіків відкрито — лише в особистому кабінеті.",
     ),
-    Operator("khmelnytskyi-oe", "Хмельницькобленерго", "khmelnytska", "https://hoe.com.ua/page/pogodinni-vidkljuchennja", note=LATER),
+    Operator(
+        "khmelnytskyi-oe", "Хмельницькобленерго", "khmelnytska", "https://hoe.com.ua/page/pogodinni-vidkljuchennja",
+        sources=(Khmelnytskyi(),),
+    ),
     Operator(
         "cherkasy-oe", "Черкасиобленерго", "cherkaska", "https://www.cherkasyoblenergo.com",
         sources=(Cherkasy(),),

@@ -23,15 +23,24 @@ MAX_PIXELS = 4_000_000
 # exact expected size is read from the header before any pixel data is decompressed.
 
 
-def decode_png(data: bytes, size: tuple[int, int], what: str) -> Image.Image:
-    """RGB pixels of a PNG that must be exactly ``size``; ``SourceFormatError`` otherwise."""
+def decode_png(data: bytes, size: tuple[int, int | range], what: str) -> Image.Image:
+    """RGB pixels of a PNG of exactly ``size`` (the height may be a range); ``SourceFormatError`` otherwise."""
     if len(data) > MAX_BYTES:
         fail(f"{what}: image is {len(data)} bytes, over {MAX_BYTES}")
+    width, heights = size
+    tallest = heights if isinstance(heights, int) else max(heights)
     try:
         image = Image.open(io.BytesIO(data), formats=["PNG"])
         # Only the header has been read so far: check it before inflating pixel data.
-        if image.size != size or size[0] * size[1] > MAX_PIXELS:
-            fail(f"{what}: image is {image.size[0]}×{image.size[1]}, expected {size[0]}×{size[1]}")
+        height_ok = image.size[1] == heights if isinstance(heights, int) else image.size[1] in heights
+        if image.size[0] != width or not height_ok or width * tallest > MAX_PIXELS:
+            expected = f"{width}×{heights}" if isinstance(heights, int) else f"{width}×{min(heights)}–{tallest}"
+            fail(f"{what}: image is {image.size[0]}×{image.size[1]}, expected {expected}")
+        if image.mode in ("RGBA", "LA", "P"):
+            # Transparent pixels read as the white page they are shown on.
+            page = Image.new("RGB", image.size, (255, 255, 255))
+            page.paste(image, mask=image.convert("RGBA").getchannel("A"))
+            return page
         return image.convert("RGB")
     except Image.DecompressionBombError as err:
         fail(f"{what}: image is too large ({err})")

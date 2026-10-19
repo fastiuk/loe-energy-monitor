@@ -9,7 +9,8 @@ from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import pytest
-from conftest import fixture_json, fixture_text, kyiv, spans
+from conftest import FIXTURES, fixture_json, fixture_text, kyiv, spans
+from conftest import FakeHttp as RoutedHttp
 from PIL import Image, ImageDraw
 
 from ua_outages.http import FetchError
@@ -19,6 +20,8 @@ from ua_outages.providers import (
     chernivtsi,
     dtek,
     kharkiv,
+    khmelnytskyi,
+    kirovohrad,
     loe,
     mykolaiv,
     poltava,
@@ -383,3 +386,140 @@ def test_volyn_fetch():
     # An image the archive does not list (an older day still on show) is skipped.
     http.responses[f"{base}/api/archive_gpv_graphs"] = {"hydra:member": []}
     assert asyncio.run(source.fetch(http, kyiv(OCT18, 9))) == {}
+
+
+def test_kirovohrad():
+    schedules = kirovohrad.parse_channel(fixture_text("kirovohrad_tg.html"))
+    assert list(schedules) == [date(2026, 4, 11), date(2026, 4, 13), date(2026, 6, 30), date(2026, 10, 17)]
+    # The newest post for a day wins: 17.10 had eight, the 18:51 correction is the schedule.
+    s = schedules[date(2026, 10, 17)]
+    assert s.updated_at == datetime(2026, 10, 17, 18, 51, 24, tzinfo=KYIV)
+    assert sorted(s.groups) == sorted(STANDARD_GROUPS) and s.unknown == {}
+    assert spans(s, "1.1") == [("12:00", "14:00", False), ("20:00", "22:00", False)]
+    assert spans(s, "6.1") == [("11:00", "12:00", False), ("14:30", "16:00", False)]
+    # Summer format: hours only, "-" for none; the forecast posted in between is not a schedule.
+    june = schedules[date(2026, 6, 30)]
+    assert spans(june, "1.1") == [("17:00", "18:00", False)] and spans(june, "1.2") == []
+    # A cancellation: no outages for anyone; a change for tomorrow posted the evening before.
+    assert not any(schedules[date(2026, 4, 13)].groups.values())
+    assert spans(schedules[date(2026, 4, 11)], "5.1") == [("06:00", "08:00", False)]
+
+
+def test_kirovohrad_posts():
+    published = datetime(2026, 10, 17, 9, 52, tzinfo=KYIV)
+    head = ["17.10.2026 - Графік погодинних відключень", 'За розпорядженням НЕК "Укренерго" 17.10.2026 буде діяти наступний графік:']
+    # Since October groups without outages are left out: they have none.
+    s = kirovohrad.parse_post([*head, "Черга 1.1: 12:00-14:00", "Черга 4.1: 22:00-24:00"], published)
+    assert spans(s, "1.1") == [("12:00", "14:00", False)] and spans(s, "4.1") == [("22:00", "24:00", False)]
+    assert spans(s, "6.2") == [] and sorted(s.groups) == sorted(STANDARD_GROUPS)
+    # An interval it can't read makes the group unknown, not empty.
+    s = kirovohrad.parse_post([*head, "Черга 2.1: з обіду", "Черга 2.2: 18-16", "Черга 3.1: 10:00-12:00 і ще"], published)
+    assert sorted(s.unknown) == ["2.1", "2.2", "3.1"] and "2.1" not in s.groups
+    assert kirovohrad.parse_post(["Штормове попередження", "Черга 1.1: 10-12"], published) is None
+    forecast = ['Попередній прогноз на ВІВТОРОК, 30 червня 2026 року.', 'Прогнозовано за розпорядженням НЕК "Укренерго" 30.06.2026 буде діяти', "Черга 1.1: 16-18"]
+    assert kirovohrad.parse_post(forecast, published) is None
+    assert kirovohrad.parse_post(['"Укренерго" 31.02.2026 буде діяти', "Черга 1.1: 10-12"], published) is None
+    with pytest.raises(SourceFormatError):
+        kirovohrad.parse_channel("<html><body>Just a moment...</body></html>")
+    with pytest.raises(ValueError):
+        kirovohrad.Kirovohrad("../evil")
+
+
+def test_khmelnytskyi_news_and_post():
+    assert khmelnytskyi.parse_news(fixture_text("khmelnytskyi_news.html")) == [
+        ("/post/pogodinni-vidkljuchennja-na-17-zhovtnja.html", date(2026, 10, 17))
+    ]
+    # Three versions on 17.10; the newest name (upload time in Kyiv) is the schedule in force.
+    path, uploaded, correction = khmelnytskyi.parse_post(fixture_text("khmelnytskyi_post.html"))
+    assert path == "/Content/Uploads/2026/10/file20261017164437203.png"
+    assert uploaded == datetime(2026, 10, 17, 16, 44, 37, tzinfo=KYIV) and correction is None
+
+
+def test_khmelnytskyi_dates_and_corrections():
+    article = (
+        '<article class="item clearfix"><div class="heading"><a href="/post/pogodinni-vidkljuchennja-na-1-sichnja.html">'
+        "Погодинні відключення на 1 січня</a></div><div class=\"item-footer\"><span>31 Гру 2026</span></div></article>"
+        '<article class="item clearfix"><div class="heading"><a href="//evil.example/x.html">Погодинні відключення на 2 січня</a>'
+        "</div><span>31 Гру 2026</span></article>"
+    )
+    assert khmelnytskyi.parse_news(article) == [("/post/pogodinni-vidkljuchennja-na-1-sichnja.html", date(2027, 1, 1))]
+    post = (
+        '<div class="post"><p>Зміни:<br />- підчерга 2.1. - відключення триватимуть з 16:00 до 17:00</p><hr />'
+        '<p><img src="/Content/Uploads/2026/10/file20261017104940210.png" /></p><hr />'
+        '<p><img src="/Content/Uploads/2026/10/file20261017100602968.png" /></p>'
+        '<p><img src="https://evil.example/Content/Uploads/2026/10/file20991231235959999.png" /></p></div>'
+    )
+    path, uploaded, correction = khmelnytskyi.parse_post(post)
+    assert path.endswith("file20261017104940210.png") and uploaded.hour == 10
+    assert correction == "Після останнього графіка оператор змінив: - підчерга 2.1. - відключення триватимуть з 16:00 до 17:00"
+    assert khmelnytskyi.parse_post('<div class="post"><p>Графік буде згодом</p></div>') == (None, None, None)
+    with pytest.raises(SourceFormatError):
+        khmelnytskyi.parse_news("<html>Just a moment...</html>")
+
+
+@pytest.mark.parametrize(
+    ("name", "day", "expected"),
+    [
+        # The web template (from June 2026): 1920×1021, two label columns.
+        ("khmelnytskyi_2026-10-17.png", date(2026, 10, 17), {
+            "1.1": [("16:00", "19:00", False)],
+            "3.1": [("10:00", "13:00", False), ("19:00", "22:00", False)],
+            "6.2": [("14:00", "16:00", False)],
+        }),
+        # The spreadsheet template (until spring 2026): 1920×1126, merged header, uneven rows.
+        ("khmelnytskyi_2026-02-26.png", date(2026, 2, 26), {
+            "1.1": [("22:00", "24:00", False)],
+            "4.2": [],
+            "6.1": [("11:00", "13:00", False)],
+        }),
+    ],
+)  # fmt: skip
+def test_khmelnytskyi_image(name, day, expected):
+    groups, unknown = khmelnytskyi.parse_image((FIXTURES / name).read_bytes(), day)
+    assert sorted(groups) == sorted(STANDARD_GROUPS) and unknown == {}
+    schedule = DaySchedule(day, None, groups)
+    for group, outages in expected.items():
+        assert spans(schedule, group) == outages
+
+
+def _recoloured(name: str, box, color) -> bytes:
+    image = Image.open(FIXTURES / name).convert("RGB")
+    ImageDraw.Draw(image).rectangle(box, fill=color)
+    out = io.BytesIO()
+    image.save(out, "PNG")
+    return out.getvalue()
+
+
+def test_khmelnytskyi_unknown_cells_and_hostile_images():
+    # A cell of a colour the legend does not have: that group is unknown, the rest is read.
+    groups, unknown = khmelnytskyi.parse_image(
+        _recoloured("khmelnytskyi_2026-10-17.png", (700, 355, 740, 375), (200, 40, 40)), OCT17
+    )
+    assert unknown == {"2.1": khmelnytskyi.UNRECOGNISED} and len(groups) == 11
+    for png, error in [
+        (_png_header(1107, 140), "1107×140"),  # a screenshot of a text correction
+        (_png_header(1059, 1200), "1059×1200"),  # an archive snapshot
+        (_png_header(1920, 30000), "1920×30000"),
+        (b"GIF89a" + b"\0" * 100, "not a readable PNG"),
+        (_recoloured("khmelnytskyi_2026-10-17.png", (0, 0, 1919, 1020), (255, 255, 255)), "frame"),
+    ]:
+        start = time.perf_counter()
+        with pytest.raises(SourceFormatError, match=error):
+            khmelnytskyi.parse_image(png, OCT17)
+        assert time.perf_counter() - start < 2
+
+
+def test_khmelnytskyi_fetch_reads_today_and_tomorrow_and_reuses_images():
+    png = (FIXTURES / "khmelnytskyi_2026-10-17.png").read_bytes()
+    http = RoutedHttp({
+        "/post/novini-kompaniji": fixture_text("khmelnytskyi_news.html"),
+        "/post/pogodinni-vidkljuchennja-na-17-zhovtnja.html": fixture_text("khmelnytskyi_post.html"),
+        "/file20261017164437203.png": png,
+    })  # fmt: skip
+    source = khmelnytskyi.Khmelnytskyi()
+    s = asyncio.run(source.fetch(http, kyiv(OCT17, 18)))[OCT17]
+    assert s.image_url == "https://hoe.com.ua/Content/Uploads/2026/10/file20261017164437203.png"
+    assert spans(s, "5.1") == [("13:00", "16:00", False)]
+    asyncio.run(source.fetch(http, kyiv(OCT17, 18, 5)))
+    assert sum(call.url.endswith(".png") for call in http.calls) == 1  # unchanged image: not again
+    assert asyncio.run(source.fetch(http, kyiv(OCT18, 9))) == {}  # 17.10 is over: nothing to show

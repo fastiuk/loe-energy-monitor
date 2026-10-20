@@ -2,19 +2,22 @@
 
 import asyncio
 import ssl
+import struct
 import time
+import zipfile
 from datetime import date
 
 import aiohttp
 import pytest
 from aiohttp import web
-from conftest import fixture_json, load_script
+from conftest import MAIN_NS, fixture_json, load_script, workbook
 from multidict import CIMultiDict
 
 from ua_outages.http import FetchError, Fetcher, Response, Throttle, forbidden_host, ssl_context
 from ua_outages.providers import kharkiv, mykolaiv, ternopil, yasno
 from ua_outages.providers._html import MAX_NODES, TooManyNodes, parse_html
 from ua_outages.providers._text import MAX_TEXT, find_day, html_lines, parse_group_text, parse_intervals, plain_text
+from ua_outages.providers._xlsx import MAX_BYTES, MAX_CELL, MAX_COLUMNS, MAX_PART, MAX_PARTS, MAX_ROWS, read_sheet
 from ua_outages.providers.base import SourceFormatError
 from ua_outages.providers.loe import _image_url
 
@@ -300,3 +303,69 @@ def test_status_summary_cells_stay_plain_text():
     assert cell("bad value HTTPS://evil.example/x or www.evil.example, WWW.x; 10:00 at 1.1") == (
         r"bad value HTTPS\://evil.example/x or www\.evil.example, WWW\.x; 10:00 at 1.1"
     )
+
+
+def _sheet(rows: str, prolog: str = "") -> str:
+    return f'<?xml version="1.0" encoding="UTF-8"?>{prolog}<worksheet xmlns="{MAIN_NS}"><sheetData>{rows}</sheetData></worksheet>'
+
+
+def _declare_size(data: bytes, name: str, size: int) -> bytes:
+    """The workbook with ``name`` claiming ``size`` bytes inflated in the zip's directory."""
+    data, start = bytearray(data), 0
+    while (start := data.find(b"PK\x01\x02", start)) >= 0:
+        length = struct.unpack_from("<H", data, start + 28)[0]
+        if data[start + 46 : start + 46 + length] == name.encode():
+            struct.pack_into("<I", data, start + 24, size)
+        start += 4
+    return bytes(data)
+
+
+def test_xlsx_reader_reads_text_cells_within_bounds():
+    shared = (
+        f'<sst xmlns="{MAIN_NS}"><si><t>Деражня</t></si>'
+        "<si><r><t>вул. </t></r><r><t>Миру</t></r><rPh><t>фонетика</t></rPh></si></sst>"
+    )
+    row = (
+        '<row><c t="s"><v>0</v></c><c t="s"><v>1</v></c><c><v>12</v></c>'  # no references: in order
+        f'<c r="E1" t="inlineStr"><is><t>{"ж" * (MAX_CELL + 10)}</t></is></c>'
+        '<c r="XFD1" t="inlineStr"><is><t>far right</t></is></c><c r="F1" t="str"><f>A1</f><v>formula</v></c></row>'
+        '<row r="9"><c r="B9"/></row>'
+    )
+    rows = read_sheet(workbook(sheet=_sheet(row), parts={"xl/sharedStrings.xml": shared}), "test")
+    assert rows[0][:4] == ["Деражня", "вул. Миру", "12", ""] and len(rows[0][4]) == MAX_CELL
+    assert rows[0][5] == "formula" and len(rows[0]) <= MAX_COLUMNS and rows[1] == ["", ""]
+
+
+def _laughs() -> str:
+    entities = '<!ENTITY a "ha">' + "".join(f'<!ENTITY e{i} "{f"&e{i - 1};" * 10 if i else "&a;" * 10}">' for i in range(10))
+    return _sheet('<row><c t="inlineStr"><is><t>&e9;</t></is></c></row>', f"<!DOCTYPE x [{entities}]>")
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        b"not a zip",
+        b"PK" + b"x" * (MAX_BYTES + 1),
+        workbook(sheet=_laughs()),  # billion laughs
+        workbook(sheet=_sheet("<row><c t='inlineStr'><is><t>&e;</t></is></c></row>", '<!DOCTYPE x [<!ENTITY e SYSTEM "file:///etc/passwd">]>')),
+        workbook(sheet=_laughs().replace("UTF-8", "UTF-16").encode("utf-16")),  # a DOCTYPE no byte search would see
+        workbook(sheet=_sheet("<row><c>")),  # not well-formed
+        workbook(sheet=_sheet('<row><c t="s"><v>5</v></c></row>')),  # no shared strings to point at
+        workbook(sheet=_sheet('<row><c r="../A1"><v>1</v></c></row>')),
+        workbook(sheet=_sheet("<row/>" * (MAX_ROWS + 1))),
+        workbook(["x"], parts={"xl/worksheets/sheet1.xml": None}),
+        workbook(["x"], parts={"xl/_rels/workbook.xml.rels": '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Target="../../../etc/passwd"/></Relationships>'}),
+        workbook(["x"], parts={f"junk/{n}": "" for n in range(MAX_PARTS)}),
+        workbook(["x"], compression=zipfile.ZIP_BZIP2),  # inflates a whole block at once
+        workbook(sheet=_sheet(" " * (MAX_PART + 1))),  # a zip bomb: refused before inflating
+        _declare_size(workbook(sheet=_sheet(" " * (MAX_PART + 1))), "xl/worksheets/sheet1.xml", 100),  # lying about it
+    ],
+    ids=[
+        "not-zip", "too-big", "laughs", "external", "utf16", "broken", "shared", "ref", "rows", "no-sheet",
+        "sheet-path", "parts", "bzip2", "bomb", "lying-size",
+    ],
+)  # fmt: skip
+def test_xlsx_reader_refuses_hostile_workbooks(data):
+    with pytest.raises(SourceFormatError):
+        _fast(read_sheet, data, "test")
+

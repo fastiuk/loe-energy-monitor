@@ -35,6 +35,7 @@ ADDRESSES = {
     "zhytomyr-oe": ["Житомирський", "Житомир", "Київська", "5"],
     "ternopil-oe": ["Тернопіль", "Руська", "1"],
     "vinnytsia-oe": ["Вінниця", "Магістратська", "2"],  # the oblenergo's own office
+    "khmelnytskyi-oe": ["Хмельницький", "Храновського", "11А"],  # the oblenergo's own office
 }
 
 

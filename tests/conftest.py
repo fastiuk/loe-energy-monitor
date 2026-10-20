@@ -1,10 +1,13 @@
 import importlib.util
+import io
 import json
 import sys
+import zipfile
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from types import ModuleType
+from xml.sax.saxutils import escape
 
 from multidict import CIMultiDict
 
@@ -79,6 +82,44 @@ class FakeHttp:
 
 def address_fixture(name: str) -> str:
     return fixture_text(f"address/{name}")
+
+
+def address_bytes(name: str) -> bytes:
+    return (FIXTURES / "address" / name).read_bytes()
+
+
+MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+
+
+def workbook(rows=(), *, sheet=None, parts=None, compression=zipfile.ZIP_DEFLATED) -> bytes:
+    """A minimal XLSX: ``rows`` of text as inline strings, or ``sheet`` as the sheet's XML.
+
+    ``parts`` adds or replaces parts by name (``None`` leaves one out).
+    """
+    if sheet is None:
+        body = "".join(
+            f'<row r="{r}">'
+            + "".join(f'<c r="{chr(65 + c)}{r}" t="inlineStr"><is><t>{escape(v)}</t></is></c>' for c, v in enumerate(row))
+            + "</row>"
+            for r, row in enumerate(rows, 1)
+        )
+        sheet = f'<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="{MAIN_NS}"><sheetData>{body}</sheetData></worksheet>'
+    files = {
+        "xl/workbook.xml": f'<workbook xmlns="{MAIN_NS}" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<sheets><sheet name="1" sheetId="1" r:id="rId1"/></sheets></workbook>',
+        "xl/_rels/workbook.xml.rels": '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" '
+        'Target="worksheets/sheet1.xml"/></Relationships>',
+        "xl/worksheets/sheet1.xml": sheet,
+        **(parts or {}),
+    }
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression) as archive:
+        for name, data in files.items():
+            if data is not None:
+                archive.writestr(name, data)
+    return buffer.getvalue()
 
 
 def load_script(name: str) -> ModuleType:

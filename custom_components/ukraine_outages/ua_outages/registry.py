@@ -13,7 +13,7 @@ from .providers.chernihiv import Chernihiv
 from .providers.chernivtsi import Chernivtsi
 from .providers.dtek import DtekPage, OutageDataUa, cek_groups
 from .providers.kharkiv import Kharkiv
-from .providers.khmelnytskyi import Khmelnytskyi
+from .providers.khmelnytskyi import Khmelnytskyi, KhmelnytskyiLookup
 from .providers.kirovohrad import CHANNELS as KIROVOHRAD_CHANNELS
 from .providers.kirovohrad import Kirovohrad
 from .providers.loe import Loe, LoeLookup
@@ -195,6 +195,7 @@ OPERATORS: tuple[Operator, ...] = (
     Operator(
         "khmelnytskyi-oe", "Хмельницькобленерго", "khmelnytska", "https://hoe.com.ua/page/pogodinni-vidkljuchennja",
         sources=(Khmelnytskyi(),),
+        lookup=KhmelnytskyiLookup(),
     ),
     Operator(
         "cherkasy-oe", "Черкасиобленерго", "cherkaska", "https://www.cherkasyoblenergo.com",

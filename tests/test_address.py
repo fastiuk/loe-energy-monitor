@@ -8,12 +8,12 @@ from datetime import UTC, date, datetime
 import aiohttp
 import pytest
 from aiohttp import web
-from conftest import FakeHttp, address_fixture, kyiv, spans
+from conftest import FakeHttp, address_bytes, address_fixture, kyiv, spans, workbook
 from multidict import CIMultiDict
 
-from ua_outages import Choice, operator
+from ua_outages import Choice, Resolution, operator
 from ua_outages.http import CachingFetcher, Response, ResponseCache, Throttle, redact
-from ua_outages.providers import ternopil
+from ua_outages.providers import khmelnytskyi, ternopil
 from ua_outages.providers._address import (
     MAX_LABEL,
     MAX_QUERY,
@@ -25,6 +25,7 @@ from ua_outages.providers._address import (
     strip_kind,
 )
 from ua_outages.providers.base import SourceFormatError
+from ua_outages.providers.khmelnytskyi import KhmelnytskyiLookup, houses, resolution, split_houses
 from ua_outages.providers.loe import LoeLookup
 from ua_outages.providers.mykolaiv import MykolaivLookup
 from ua_outages.providers.poltava import PoltavaLookup
@@ -228,6 +229,146 @@ def test_zhytomyr_lookup():
     thirteen = run(lookup.resolve(http, [*street, "13"]))
     assert thirteen.groups == () and thirteen.other == ("не вимикається",)
     assert run(lookup.resolve(http, [*street, "86"])).groups == ("5.2",)  # businesses only
+
+
+KHMELNYTSKYI_WORKBOOKS = {
+    "Летичівський_РЕМ_09102026.xlsx": "khmelnytskyi_letychiv.xlsx",
+    "Хмельницький_РЕМ_побут_09102026.xlsx": "khmelnytskyi_pobut.xlsx",
+    "Хмельницький_РЕМ_непобут_09102026.xlsx": "khmelnytskyi_nepobut.xlsx",
+}
+KHMELNYTSKYI = "Хмельницький (Хмельницький РЕМ)"
+
+
+def khmelnytskyi_http(routes=None):
+    return FakeHttp(
+        {
+            "/page/pogodinni-vidkljuchennja": address_fixture("khmelnytskyi_queues.html"),
+            **{name: address_bytes(fixture) for name, fixture in KHMELNYTSKYI_WORKBOOKS.items()},
+            **(routes or {}),
+        }
+    )
+
+
+def test_khmelnytskyi_lookup_reads_the_operators_workbooks():
+    assert isinstance(operator("khmelnytskyi-oe").lookup, KhmelnytskyiLookup)
+    lookup, http = KhmelnytskyiLookup(), khmelnytskyi_http()
+    assert run(lookup.options(http, [], "Х")) == [] and http.calls == []  # too short to search
+    assert run(lookup.options(http, [], "м. Хмельницький")) == [Choice(KHMELNYTSKYI, KHMELNYTSKYI)]
+    # The page, then each РЕМ's workbook, households first; the PDFs are not needed.
+    assert [c.url.removeprefix("https://hoe.com.ua") for c in http.calls] == [
+        "/page/pogodinni-vidkljuchennja",
+        "/Content/Uploads/GPV6/xls/Черги_на_відключення_Летичівський_РЕМ_09102026.xlsx",
+        "/Content/Uploads/GPV6/xls/Черги_на_відключення_Хмельницький_РЕМ_побут_09102026.xlsx",
+        "/Content/Uploads/GPV6/xls/Черги_на_відключення_Хмельницький_РЕМ_непобут_09102026.xlsx",
+    ]
+    # Villages of the same name in different РЕМ are told apart; only the name is searched.
+    assert labels(run(lookup.options(http, [], "Іванківці"))) == ["Іванківці (Летичівський РЕМ)", "Іванківці (Хмельницький РЕМ)"]
+    assert run(lookup.options(http, [], "РЕМ")) == []
+    # "майданНезалежності" in the workbook.
+    assert labels(run(lookup.options(http, [KHMELNYTSKYI], ""))) == ["майдан Незалежності", "вул. Храновського"]
+    street = [KHMELNYTSKYI, "вул. Храновського"]
+    assert labels(run(lookup.options(http, street, ""))) == ["4", "10/1", "11А", "12А", "16/1", "16/2"]
+    assert run(lookup.options(http, street, "11а")) == [Choice("11А", "11А")]
+    # The oblenergo's office: in this trimmed copy only the non-household workbook lists it.
+    assert run(lookup.resolve(http, [*street, "11А"])) == Resolution(("5.2",))
+    assert labels(run(lookup.options(http, ["Божиківці (Летичівський РЕМ)", "вул. Перемоги"], ""))) == ["КТП289"]
+    assert len(http.calls) == 4  # the rest came from what was read
+    for path in (["Нема (Летичівський РЕМ)"], [KHMELNYTSKYI, "вул. Нема"], [KHMELNYTSKYI, 1]):
+        with pytest.raises(ValueError):
+            run(lookup.options(http, path, ""))
+    for path in ([*street, "999"], street, [*street, "11А", "1"]):
+        with pytest.raises(ValueError):
+            run(lookup.resolve(http, path))
+
+
+def test_khmelnytskyi_lookup_reads_again_when_its_copy_is_old(monkeypatch):
+    lookup, http = KhmelnytskyiLookup(), khmelnytskyi_http()
+    run(lookup.options(http, [], "Загінці"))
+    run(lookup.options(http, [], "Загінці"))
+    assert len(http.calls) == 4
+    now = khmelnytskyi.time.monotonic()
+    monkeypatch.setattr(khmelnytskyi.time, "monotonic", lambda: now + khmelnytskyi.FILES_TTL + 1)
+    assert labels(run(lookup.options(http, [], "Загінці"))) == ["Загінці (Летичівський РЕМ)"]
+    assert len(http.calls) == 8
+    lookup._forget(lookup._places)  # what the event loop does after FILES_TTL
+    assert lookup._places is None
+
+
+def test_khmelnytskyi_house_numbers_are_tidied():
+    listed = ' 1, 10-а, 1 Б, 2/1"З", 53\\1, 8A, 4\'\'г\'\'/1, 18/2,п.1, 18/2,п.3, 11-, , -, а, б/н, КТП289, 20 / 1'
+    assert split_houses(listed) == [
+        "1", "10А", "1Б", "2/1З", "53/1", "8А", "4Г/1", "18/2", "18/2 п.1", "18/2", "18/2 п.3", "11", "КТП289", "20/1",
+    ]  # fmt: skip
+    assert split_houses("1\u202e2, 3\u200b") == ["1 2", "3"]  # invisible characters go
+    assert len(split_houses(", ".join(map(str, range(5000))))) == khmelnytskyi.MAX_HOUSES
+
+
+def test_khmelnytskyi_resolution():
+    found = houses([(" 1, 2", "1.1", True), ("2, 3", "4.2", False), ("3", "Не входить", False), ("7, 7", "5.2", True)])
+    assert resolution(found["2"]) == Resolution(("1.1",))  # households win over businesses in one house
+    assert resolution(found["3"]) == Resolution(("4.2",), ("Не входить",))  # businesses only
+    multi = houses([("7", "5.2", True), ("7", "1.1", True), ("6, 7", "1.1", True)])
+    assert resolution(multi["7"]).groups == ("1.1", "5.2")  # several connections: most rows first
+
+
+def test_khmelnytskyi_workbook_rows_are_cleaned():
+    header = ["Населений пункт", "Вулиця", "Список будинків", "Черга/підчерга"]
+    data = workbook(
+        [
+            ["Летичівський РЕМ\u202e (побутові споживачі)"],
+            [],
+            header,
+            ["Загінці\u2066", "вул.\nБерегова", "1, 2", "1.1. підчерга"],
+            ["Загінці", "вул. Берегова", " ", "1.2. підчерга"],  # no houses
+            ["", "вул. Нова", "1", "1.1. підчерга"],  # no settlement
+            ["Загінці", "хутірГуляк", "5", "Не входить"],
+            ["Загінці", "вул. Довга", "7", ""],  # no queue
+            ["Загінці", "вул. Коротка"],
+            ["Загінці", "вул. Нова", "9", "3,2"],
+        ]
+    )
+    assert khmelnytskyi.parse_queue_file(data) == (
+        "Летичівський РЕМ",
+        [
+            ("Загінці", "вул. Берегова", "1, 2", "1.1"),
+            ("Загінці", "хутір Гуляк", "5", "Не входить"),
+            ("Загінці", "вул. Нова", "9", "3.2"),
+        ],
+    )
+    # Columns are found by their names.
+    moved = workbook([["Черга/підчерга", "Вулиця", "Населений пункт", "Список будинків"], ["2.1. підчерга", "вул. Миру", "Деражня", "4"]])
+    assert khmelnytskyi.parse_queue_file(moved) == (None, [("Деражня", "вул. Миру", "4", "2.1")])
+    for broken in (workbook([["Населений пункт", "Вулиця"], ["Деражня", "вул. Миру"]]), b"<html>"):
+        with pytest.raises(SourceFormatError):
+            khmelnytskyi.parse_queue_file(broken)
+    # A street split over more rows than any real one would make every search of it slow.
+    long_street = workbook([header] + [["Деражня", "вул. Миру", str(n), "1.1. підчерга"] for n in range(51)])
+    with pytest.raises(SourceFormatError):
+        khmelnytskyi.build_places([("Летичівський", True, long_street)])
+
+
+def test_khmelnytskyi_only_the_operators_workbooks_are_read():
+    page = address_fixture("khmelnytskyi_queues.html")
+    files = khmelnytskyi.parse_queue_files(page)
+    assert [(rem, household) for _, rem, household in files] == [
+        ("Летичівський", True), ("Хмельницький", True), ("Хмельницький", False),
+    ]  # fmt: skip
+    links = [
+        "/Content/Uploads/GPV6/xls/Черги_на_відключення_Летичівський_РЕМ_01092026.xlsx",  # older
+        "https://evil.example/Content/Uploads/GPV6/xls/Черги_на_відключення_Злий_РЕМ_09102026.xlsx",
+        "//evil.example/Content/Uploads/GPV6/xls/Черги_на_відключення_Злий_РЕМ_09102026.xlsx",
+        "/Content/Uploads/GPV6/xls/Черги_на_відключення_..%2F..%2Fadmin_РЕМ_09102026.xlsx",
+        "/Content/Uploads/../xls/Черги_на_відключення_Злий_РЕМ_09102026.xlsx",
+        "/Content/Uploads/GPV6/xls/Черги_на_відключення_Злий_РЕМ_09102026.xlsx?x=1",
+    ]
+    extra = "".join(f'<li><a href="{link}">x</a></li>' for link in links)
+    assert khmelnytskyi.parse_queue_files(page.replace("</ul>", extra + "</ul>", 1)) == files
+    newer = '<li><a href="/Content/Uploads/GPV6/xls/%D0%A7%D0%B5%D1%80%D0%B3%D0%B8_на_відключення_Летичівський_РЕМ_20102026.xlsx">x</a></li>'
+    assert khmelnytskyi.parse_queue_files(page.replace("</ul>", newer + "</ul>", 1))[0][0].endswith("_РЕМ_20102026.xlsx")
+    many = "".join(f'<a href="/Content/Uploads/GPV6/xls/Черги_на_відключення_Р{n}_РЕМ_09102026.xlsx">x</a>' for n in range(21))
+    for broken in ("<html></html>", '<div class="post">нічого</div>', f'<div class="post">{many}</div>'):
+        with pytest.raises(SourceFormatError):
+            khmelnytskyi.parse_queue_files(broken)
 
 
 def ternopil_http(**routes):

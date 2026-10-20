@@ -65,6 +65,11 @@ class Operator:
         return bool(self.sources) and all(isinstance(s, AddressSource) for s in self.sources)
 
     @property
+    def official_api(self) -> bool:
+        """The primary source is the operator's own API (``Provider.official_api``)."""
+        return bool(self.sources) and self.sources[0].official_api
+
+    @property
     def poll_interval(self) -> int:
         return max(s.min_interval for s in self.sources) if self.sources else 0
 

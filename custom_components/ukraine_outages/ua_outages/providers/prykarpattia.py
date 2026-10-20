@@ -86,6 +86,7 @@ def _intervals(day: date, intervals: Any) -> tuple[Outage, ...] | None:
 class Prykarpattia(Provider):
     hosts = frozenset({"be-svitlo.oe.if.ua"})
     min_interval = 300
+    official_api = True
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         schedules: dict[date, DaySchedule] = {}

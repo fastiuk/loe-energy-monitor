@@ -83,6 +83,7 @@ def parse(queues: Any, series: Any, active: Any) -> dict[date, DaySchedule]:
 class Mykolaiv(Provider):
     hosts = frozenset({"off.energy.mk.ua"})
     min_interval = 300
+    official_api = True
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         queues = (await http.get(f"{BASE_URL}/outage-queue/by-type/3")).json()

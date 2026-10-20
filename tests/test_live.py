@@ -8,14 +8,11 @@ import asyncio
 import os
 
 import pytest
-from conftest import load_script
 
 from ua_outages import AddressSource, Fetcher, SourceBlocked, now_kyiv, operator
 from ua_outages.http import new_session
 from ua_outages.registry import OPERATORS, available_operators
-
-#: Labels from the operators' directories are untrusted: plain text in the job summary.
-cell = load_script("source_status").cell
+from ua_outages.status import cell  # labels from the operators' directories: plain text in the summary
 
 pytestmark = pytest.mark.skipif(os.environ.get("LIVE") != "1", reason="set LIVE=1 to query the real sources")
 

@@ -144,6 +144,7 @@ def _newer(a: DaySchedule, b: DaySchedule) -> bool:
 class Loe(Provider):
     hosts = frozenset({"api.loe.lviv.ua"})
     min_interval = 180
+    official_api = True
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         params = {

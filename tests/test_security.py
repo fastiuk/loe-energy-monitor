@@ -10,7 +10,7 @@ from datetime import date
 import aiohttp
 import pytest
 from aiohttp import web
-from conftest import MAIN_NS, fixture_json, load_script, workbook
+from conftest import MAIN_NS, fixture_json, workbook
 from multidict import CIMultiDict
 
 from ua_outages.http import FetchError, Fetcher, Response, Throttle, forbidden_host, ssl_context
@@ -295,7 +295,8 @@ def test_fetcher_refuses_other_ports():
 
 
 def test_status_summary_cells_stay_plain_text():
-    cell = load_script("source_status").cell
+    from ua_outages.status import cell
+
     assert cell("HTTP 500 | ![x](https://evil.example/t.png)\n## big") == (
         r"HTTP 500 \| \!\[x\]\(https\://evil.example/t.png\) \#\# big"
     )

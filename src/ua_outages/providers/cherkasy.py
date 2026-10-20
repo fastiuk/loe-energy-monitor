@@ -69,6 +69,7 @@ def parse_post(payload: Any, day: date, published: datetime) -> DaySchedule:
 class Cherkasy(Provider):
     hosts = frozenset({"www.cherkasyoblenergo.com"})
     min_interval = 300
+    official_api = True
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         posts = await http.get(f"{BASE_URL}/main", params={"lang": "uk", "limit": "200"})

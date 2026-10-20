@@ -1,10 +1,10 @@
 name: Sources
 
-# Every few hours: query each operator's sources and publish a status badge per operator
-# (README, section "Статус джерел") to the `status` branch. Once a day, and on every push to
-# main, also run the detailed live tests, address lookups included. A red run means an
-# operator that should work has no working source; sites that answer only Ukrainian
-# connections are not queried from GitHub's runners.
+# Every few hours: query each operator's sources from GitHub's runners (abroad). Once a day,
+# and on every push to main, also run the detailed live tests, address lookups included. A red
+# run means an operator that should work has no working source; sites that answer only
+# Ukrainian connections are not queried from here. The README's badges come from the Telegram
+# bot, which runs the same check from Ukraine every hour (fastiuk/ukraine-energy-monitor-status).
 on:
   push:
     branches: [main]
@@ -49,33 +49,9 @@ jobs:
           path: status/
           retention-days: 7
 
-  publish:
-    name: Publish badges
-    needs: status
-    if: needs.status.result == 'success' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write  # only for the force-push of the status branch below
-    steps:
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: status
-          path: status
-      - name: Push the status branch
-        working-directory: status
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git init -q -b status
-          git add -A
-          git -c user.name="github-actions[bot]" \
-              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -q -m "Source status $(date -u +%Y-%m-%dT%H:%MZ)"
-          git push -q --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" status
-
   verdict:
     name: Every source works
-    needs: [status, publish]
+    needs: status
     if: always() && needs.status.result != 'skipped'
     runs-on: ubuntu-latest
     steps:

@@ -101,6 +101,7 @@ class Ternopil(AddressSource):
     hosts = frozenset({"api-poweron.toe.com.ua"})
     min_interval = 300
     request_gap = 1.0
+    official_api = True
 
     def valid_address(self, address: str) -> bool:
         return isinstance(address, str) and _ADDRESS_RE.fullmatch(address) is not None

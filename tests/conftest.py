@@ -1,12 +1,9 @@
-import importlib.util
 import io
 import json
-import sys
 import zipfile
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
-from types import ModuleType
 from xml.sax.saxutils import escape
 
 from multidict import CIMultiDict
@@ -15,7 +12,6 @@ from ua_outages.http import FetchError, Response
 from ua_outages.models import KYIV
 
 FIXTURES = Path(__file__).parent / "fixtures"
-SCRIPTS = Path(__file__).parent.parent / "scripts"
 
 
 def fixture_text(name: str) -> str:
@@ -120,12 +116,3 @@ def workbook(rows=(), *, sheet=None, parts=None, compression=zipfile.ZIP_DEFLATE
             if data is not None:
                 archive.writestr(name, data)
     return buffer.getvalue()
-
-
-def load_script(name: str) -> ModuleType:
-    """``scripts/<name>.py`` as a module: the scripts are not a package."""
-    if (module := sys.modules.get(name)) is None:
-        spec = importlib.util.spec_from_file_location(name, SCRIPTS / f"{name}.py")
-        module = sys.modules[name] = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-    return module

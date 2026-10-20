@@ -126,6 +126,7 @@ def _datetime(value: Any) -> datetime | None:
 class Yasno(Provider):
     hosts = frozenset({"app.yasno.ua"})
     min_interval = 180
+    official_api = True
 
     def __init__(self, region: int, dso: int) -> None:
         self.region = region

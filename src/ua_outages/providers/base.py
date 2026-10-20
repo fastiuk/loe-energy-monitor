@@ -53,6 +53,9 @@ class Provider(ABC):
     #: The source tells on which days a schedule applies, not the hours: those are only on the
     #: operator's picture (``DaySchedule.image_url``), so every group is "unknown" by design.
     hours_on_picture: ClassVar[bool] = False
+    #: The schedule comes as data (JSON) from the operator's own API, not from a web page, a
+    #: picture, a Telegram channel or someone else's mirror.
+    official_api: ClassVar[bool] = False
 
     @property
     def name(self) -> str:

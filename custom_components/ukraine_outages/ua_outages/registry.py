@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from .providers.base import AddressLookup, AddressSource, Provider
 from .providers.cherkasy import Cherkasy
+from .providers.chernihiv import Chernihiv
 from .providers.chernivtsi import Chernivtsi
 from .providers.dtek import DtekPage, OutageDataUa, cek_groups
 from .providers.kharkiv import Kharkiv
@@ -20,9 +21,12 @@ from .providers.mykolaiv import Mykolaiv, MykolaivLookup
 from .providers.poltava import Poltava, PoltavaLookup
 from .providers.prykarpattia import Prykarpattia
 from .providers.rivne import Rivne
+from .providers.sumy_news import SumyNews
 from .providers.ternopil import Ternopil, TernopilLookup
+from .providers.vinnytsia import Vinnytsia, VinnytsiaLookup
 from .providers.volyn import Volyn
 from .providers.yasno import Yasno, YasnoLookup
+from .providers.zakarpattia import Zakarpattia
 from .providers.zaporizhzhia import Zaporizhzhia
 from .providers.zhytomyr import Zhytomyr, ZhytomyrLookup
 
@@ -91,8 +95,11 @@ OPERATORS: tuple[Operator, ...] = (
     ),
     Operator(
         "vinnytsia-oe", "Вінницяобленерго", "vinnytska", "https://www.voe.com.ua/disconnection/detailed",
-        note="Вінницяобленерго показує графік лише для окремої адреси на своєму сайті, "
-        "тож бот не може його отримати.",
+        sources=(Vinnytsia(),),
+        lookup=VinnytsiaLookup(),
+        note="Вінницяобленерго показує графік лише для конкретної адреси, тож бот підписує за адресою: "
+        "знайдіть свій будинок, і бот стежитиме за чергою цієї адреси. Чергу сайт показує, лише коли "
+        "діють графіки погодинних відключень.",
     ),
     Operator(
         "volyn-oe", "Волиньобленерго", "volynska",
@@ -122,8 +129,9 @@ OPERATORS: tuple[Operator, ...] = (
     Operator(
         "zakarpattia-oe", "Закарпаттяобленерго", "zakarpatska",
         "https://zakarpat.energy/customers/break-in-electricity-supply/schedule/",
-        note="Закарпаттяобленерго зараз не застосовує графіків погодинних відключень. "
-        "Коли почне — додамо.",
+        sources=(Zakarpattia(),),
+        note="Закарпаттяобленерго зараз не застосовує графіків погодинних відключень. Щойно почне "
+        "публікувати графік, бот це помітить.",
     ),
     Operator(
         "zaporizhzhia-oe", "Запоріжжяобленерго", "zaporizka", "https://www.zoe.com.ua/outage/",
@@ -165,10 +173,9 @@ OPERATORS: tuple[Operator, ...] = (
     ),
     Operator(
         "sumy-oe", "Сумиобленерго", "sumska", "https://www.soe.com.ua/consumers/shutdowns",
-        # Since 19.10.2026 the API answers only the operator's own site (403 to anyone else).
-        # Not worked around; providers.sumy.Sumy parses it if it opens again.
-        note="Сумиобленерго закрив свої дані для сторонніх сервісів. Графік — на сайті "
-        "soe.com.ua (Споживачам → Відключення) і в застосунку E-Svitlo.",
+        # The operator's API answers only its own site (not worked around); its news carry the
+        # same schedule as a picture, read with glyph templates and checked against itself.
+        sources=(SumyNews(),),
     ),
     Operator(
         "ternopil-oe", "Тернопільобленерго", "ternopilska", "https://poweron.toe.com.ua",
@@ -199,7 +206,12 @@ OPERATORS: tuple[Operator, ...] = (
         groups=tuple(str(n) for n in range(1, 13)),
         group_label="група",
     ),
-    Operator("chernihiv-oe", "Чернігівобленерго", "chernihivska", "https://chernihivoblenergo.com.ua/blackouts", note=LATER),
+    Operator(
+        "chernihiv-oe", "Чернігівобленерго", "chernihivska", "https://chernihivoblenergo.com.ua/blackouts",
+        sources=(Chernihiv(),),
+        note="Чернігівобленерго публікує години відключень лише картинкою: бот повідомляє, на який день "
+        "діє графік, дає посилання на картинку і пише текстові зміни для вашої черги.",
+    ),
     Operator("sevastopol", "м. Севастополь", "sevastopol", "", note=OCCUPIED),
 )  # fmt: skip
 

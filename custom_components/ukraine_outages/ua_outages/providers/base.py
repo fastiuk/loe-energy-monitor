@@ -50,6 +50,9 @@ class Provider(ABC):
     #: The site drops requests from outside Ukraine or from datacenters (GitHub's runners
     #: among them) but answers a home connection in Ukraine.
     ukraine_only: ClassVar[bool] = False
+    #: The source tells on which days a schedule applies, not the hours: those are only on the
+    #: operator's picture (``DaySchedule.image_url``), so every group is "unknown" by design.
+    hours_on_picture: ClassVar[bool] = False
 
     @property
     def name(self) -> str:
@@ -123,6 +126,9 @@ class Resolution:
     other: tuple[str, ...] = ()
     #: For operators whose source works per address: the key ``AddressSource`` needs.
     address: str | None = None
+    #: Why the address has no group right now, said instead of "it is in none" (e.g. the
+    #: operator shows groups only while schedules apply).
+    reason: str | None = None
 
 
 class AddressLookup(ABC):

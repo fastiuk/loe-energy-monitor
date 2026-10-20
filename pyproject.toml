@@ -1,13 +1,13 @@
 [project]
 name = "ukraine-energy-monitor"
-version = "0.4.4"
+version = "0.4.5"
 description = "Графіки погодинних відключень світла для всіх областей України: джерела, розбір, Home Assistant"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.13"
 dependencies = [
     "aiohttp>=3.9",
-    "certifi>=2024.2.2",
+    "certifi>=2026.10.19",
     "pillow>=11",
     "tzdata>=2024.1",
 ]

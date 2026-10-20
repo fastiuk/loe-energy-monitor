@@ -592,7 +592,7 @@ wheels = [
 
 [[package]]
 name = "ukraine-energy-monitor"
-version = "0.4.4"
+version = "0.4.5"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -609,7 +609,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9" },
-    { name = "certifi", specifier = ">=2024.2.2" },
+    { name = "certifi", specifier = ">=2026.10.19" },
     { name = "pillow", specifier = ">=11" },
     { name = "tzdata", specifier = ">=2024.1" },
 ]

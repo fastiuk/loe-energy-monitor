@@ -27,7 +27,7 @@ from ..http import Fetcher
 from ..models import KYIV, DaySchedule
 from ._html import Node, parse_html
 from ._text import MONTHS
-from .base import Provider, fail
+from .base import Kind, Provider, fail
 
 CHANNEL = "chernigivoblenergo"
 URL = f"https://t.me/s/{CHANNEL}"
@@ -141,6 +141,8 @@ class Chernihiv(Provider):
     hosts = frozenset({"t.me"})
     min_interval = 300
     hours_on_picture = True
+    kind = Kind.TELEGRAM
+    page = URL
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         today = now.astimezone(KYIV).date()

@@ -57,7 +57,7 @@ from ._address import (
     strip_kind,
 )
 from ._html import Node, parse_html
-from .base import AddressLookup, AddressSource, Choice, Resolution, SourceBlocked, SourceFormatError, Step, fail
+from .base import AddressLookup, AddressSource, Choice, Kind, Resolution, SourceBlocked, SourceFormatError, Step, fail
 
 BASE_URL = "https://www.voe.com.ua"
 FORM_URL = f"{BASE_URL}/disconnection/detailed"
@@ -313,6 +313,8 @@ class _AddressPage:
 class Vinnytsia(AddressSource):
     hosts = HOSTS
     ukraine_only = True  # 403 from GitHub's runners; answers Ukrainian connections, datacentres too
+    kind = Kind.PAGE
+    page = FORM_URL
     #: Two requests per address and a 140 KB page each time: no need to ask more often.
     min_interval = 600
     request_gap = 2.0

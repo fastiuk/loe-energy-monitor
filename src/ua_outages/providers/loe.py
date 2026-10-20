@@ -31,7 +31,7 @@ from ..http import Fetcher
 from ..models import KYIV, DaySchedule, Outage
 from ._address import clean_label, entries, normalize_group, numeric_id, pick, require_id, search_term
 from ._text import html_lines, parse_intervals
-from .base import AddressLookup, Choice, Provider, Resolution, Step, fail, url_on_host
+from .base import AddressLookup, Choice, Kind, Provider, Resolution, Step, fail, url_on_host
 
 log = logging.getLogger(__name__)
 
@@ -144,7 +144,8 @@ def _newer(a: DaySchedule, b: DaySchedule) -> bool:
 class Loe(Provider):
     hosts = frozenset({"api.loe.lviv.ua"})
     min_interval = 180
-    official_api = True
+    kind = Kind.API
+    page = SCHEDULE_URL + "?page=1&type=photo-grafic"
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         params = {

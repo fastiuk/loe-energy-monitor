@@ -19,7 +19,7 @@ from datetime import date, datetime, time
 from ..http import Fetcher
 from ..models import KYIV, DaySchedule, Outage, Slot, outages_from_slots
 from ._html import Node, parse_html
-from .base import Provider, fail
+from .base import Kind, Provider, fail
 
 URL = "https://oblenergo.cv.ua/shutdowns/"
 LETTERS = {"з": Slot.ON, "в": Slot.OFF, "мз": Slot.MAYBE, "мв": Slot.MAYBE}
@@ -68,6 +68,8 @@ class Chernivtsi(Provider):
     hosts = frozenset({"oblenergo.cv.ua"})
     ukraine_only = True  # times out or answers 403 from GitHub's runners
     min_interval = 300
+    kind = Kind.PAGE
+    page = URL
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         schedules = {}

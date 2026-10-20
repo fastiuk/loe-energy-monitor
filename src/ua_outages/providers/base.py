@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
+from enum import StrEnum
 from typing import ClassVar, NoReturn
 
 from ..http import MAX_BYTES, FetchError, Fetcher
@@ -22,6 +23,18 @@ class SourceFormatError(FetchError):
 
 class SourceBlocked(FetchError):
     """The site's bot protection (Imperva, Cloudflare) refused the request."""
+
+
+class Kind(StrEnum):
+    """What a source reads the schedule from."""
+
+    API = "API"
+    PAGE = "сторінка сайту"
+    PICTURE = "картинка з сайту"
+    #: The operator's own channel, one its website links to.
+    TELEGRAM = "Telegram-канал"
+    #: Someone else's copy of the operator's data.
+    MIRROR = "неофіційне дзеркало"
 
 
 def fail(message: str) -> NoReturn:
@@ -53,9 +66,20 @@ class Provider(ABC):
     #: The source tells on which days a schedule applies, not the hours: those are only on the
     #: operator's picture (``DaySchedule.image_url``), so every group is "unknown" by design.
     hours_on_picture: ClassVar[bool] = False
-    #: The schedule comes as data (JSON) from the operator's own API, not from a web page, a
-    #: picture, a Telegram channel or someone else's mirror.
-    official_api: ClassVar[bool] = False
+    #: What the schedule is read from.
+    kind: ClassVar[Kind] = Kind.PAGE
+    #: A public address of what is read, when it is the same for every fetch (no queue or
+    #: address in it); ``link`` gives it.
+    page: ClassVar[str | None] = None
+
+    @property
+    def link(self) -> str | None:
+        return self.page
+
+    @property
+    def official(self) -> bool:
+        """The operator's own website, API or channel, not someone else's mirror."""
+        return self.kind is not Kind.MIRROR
 
     @property
     def name(self) -> str:

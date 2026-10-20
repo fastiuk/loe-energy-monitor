@@ -47,7 +47,7 @@ from PIL import Image, ImageChops
 from ..http import Fetcher
 from ..models import KYIV, DaySchedule, Outage, at_minute, merge_outages
 from ._image import decode_png
-from .base import Provider, SourceFormatError, fail
+from .base import Kind, Provider, SourceFormatError, fail
 
 log = logging.getLogger(__name__)
 
@@ -848,6 +848,8 @@ def parse_image(png: bytes, day: date) -> Decoded:
 class SumyNews(Provider):
     hosts = frozenset({"www.soe.com.ua"})
     min_interval = 300
+    kind = Kind.PICTURE
+    page = NEWS_URL
 
     def __init__(self) -> None:
         # Decoded images (or why they could not be read) by URL and day. Every upload gets a

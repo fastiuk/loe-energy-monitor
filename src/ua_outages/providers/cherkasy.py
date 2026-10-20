@@ -21,7 +21,7 @@ from typing import Any
 from ..http import Fetcher
 from ..models import KYIV, DaySchedule
 from ._text import find_day, html_lines, parse_group_text
-from .base import Provider, fail
+from .base import Kind, Provider, fail
 
 BASE_URL = "https://www.cherkasyoblenergo.com/api/v1/posts"
 GROUPS = tuple(f"{q}.{s}" for q in range(1, 7) for s in (1, 2))
@@ -69,7 +69,8 @@ def parse_post(payload: Any, day: date, published: datetime) -> DaySchedule:
 class Cherkasy(Provider):
     hosts = frozenset({"www.cherkasyoblenergo.com"})
     min_interval = 300
-    official_api = True
+    kind = Kind.API
+    page = f"{BASE_URL}/main?lang=uk&limit=200"
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         posts = await http.get(f"{BASE_URL}/main", params={"lang": "uk", "limit": "200"})

@@ -15,7 +15,7 @@ from email.utils import parsedate_to_datetime
 from ..http import Fetcher
 from ..models import KYIV, DaySchedule
 from ._text import find_day, html_lines, parse_group_text, unescape
-from .base import Provider, fail
+from .base import Kind, Provider, fail
 
 URL = "https://oblenergo.kharkiv.ua/uk/rss.xml"
 GROUPS = tuple(f"{q}.{s}" for q in range(1, 7) for s in (1, 2))
@@ -75,6 +75,8 @@ class Kharkiv(Provider):
     hosts = frozenset({"oblenergo.kharkiv.ua"})
     ukraine_only = True  # times out or answers 403 from GitHub's runners
     min_interval = 300
+    kind = Kind.PAGE
+    page = URL
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         resp = await http.get(URL, headers={"Accept": "application/rss+xml, application/xml"})

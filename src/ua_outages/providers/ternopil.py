@@ -29,7 +29,7 @@ from typing import Any
 from ..http import Fetcher
 from ..models import KYIV, DaySchedule, Outage, Slot, outages_from_slots
 from ._address import clean_label, entries, normalize_group, numeric_id, pick, require_id, search_term
-from .base import AddressLookup, AddressSource, Choice, Resolution, Step, fail
+from .base import AddressLookup, AddressSource, Choice, Kind, Resolution, Step, fail
 
 API_URL = "https://api-poweron.toe.com.ua/api"
 STATES = {"0": Slot.ON, "1": Slot.OFF, "10": Slot.MAYBE}
@@ -101,7 +101,7 @@ class Ternopil(AddressSource):
     hosts = frozenset({"api-poweron.toe.com.ua"})
     min_interval = 300
     request_gap = 1.0
-    official_api = True
+    kind = Kind.API
 
     def valid_address(self, address: str) -> bool:
         return isinstance(address, str) and _ADDRESS_RE.fullmatch(address) is not None

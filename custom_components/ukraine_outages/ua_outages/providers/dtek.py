@@ -21,7 +21,7 @@ from typing import Any
 
 from ..http import FetchError, Fetcher
 from ..models import KYIV, DaySchedule, Outage, Slot, outages_from_slots
-from .base import Provider, SourceBlocked, fail
+from .base import Kind, Provider, SourceBlocked, fail
 
 #: Hour value → its two half-hour cells.
 HOUR_STATES = {
@@ -138,6 +138,10 @@ class DtekPage(Provider):
         self.url = f"https://www.dtek-{network}.com.ua/ua/shutdowns"
 
     @property
+    def link(self) -> str:
+        return self.url
+
+    @property
     def hosts(self) -> frozenset[str]:  # type: ignore[override]
         return frozenset({f"www.dtek-{self.network}.com.ua"})
 
@@ -174,6 +178,9 @@ class OutageDataUa(Provider):
     """github.com/Baskerville42/outage-data-ua (MIT): DTEK data for regions behind Imperva."""
 
     hosts = frozenset({"raw.githubusercontent.com"})
+    kind = Kind.PAGE
+    kind = Kind.MIRROR
+    page = "https://github.com/Baskerville42/outage-data-ua"
     #: raw.githubusercontent.com caches files for 5 minutes.
     min_interval = 300
 

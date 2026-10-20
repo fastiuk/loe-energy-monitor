@@ -27,7 +27,7 @@ from datetime import date, datetime, timedelta
 from ..http import Fetcher
 from ..models import KYIV, DaySchedule, Outage, at, merge_outages
 from ._html import Node, parse_html
-from .base import Provider, fail
+from .base import Kind, Provider, fail
 
 URL = "https://t.me/s/{channel}"
 GROUPS = tuple(f"{q}.{s}" for q in range(1, 7) for s in (1, 2))
@@ -133,11 +133,16 @@ def parse_channel(markup: str) -> dict[date, DaySchedule]:
 class Kirovohrad(Provider):
     hosts = frozenset({"t.me"})
     min_interval = 300
+    kind = Kind.TELEGRAM
 
     def __init__(self, channel: str) -> None:
         if not _CHANNEL_RE.fullmatch(channel):
             raise ValueError(f"not a Telegram channel name: {channel!r}")
         self.channel = channel
+
+    @property
+    def link(self) -> str:
+        return URL.format(channel=self.channel)
 
     @property
     def name(self) -> str:

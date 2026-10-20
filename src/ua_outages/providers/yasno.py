@@ -27,7 +27,7 @@ from typing import Any
 from ..http import Fetcher
 from ..models import KYIV, DaySchedule, Outage, at_minute, merge_outages
 from ._address import clean_label, entries, numeric_id, pick, require_id, search_term, strip_kind
-from .base import AddressLookup, Choice, Provider, Resolution, Step, fail
+from .base import AddressLookup, Choice, Kind, Provider, Resolution, Step, fail
 
 BASE_URL = "https://app.yasno.ua/api/blackout-service/public/shutdowns"
 ADDRESS_URL = f"{BASE_URL}/addresses/v2"
@@ -126,11 +126,15 @@ def _datetime(value: Any) -> datetime | None:
 class Yasno(Provider):
     hosts = frozenset({"app.yasno.ua"})
     min_interval = 180
-    official_api = True
+    kind = Kind.API
 
     def __init__(self, region: int, dso: int) -> None:
         self.region = region
         self.dso = dso
+
+    @property
+    def link(self) -> str:
+        return f"{BASE_URL}/regions/{self.region}/dsos/{self.dso}/planned-outages"
 
     @property
     def name(self) -> str:

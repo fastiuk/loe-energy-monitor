@@ -36,7 +36,7 @@ from PIL import Image
 from ..http import Fetcher
 from ..models import KYIV, DaySchedule, Outage, Slot, outages_from_slots
 from ._image import decode_png
-from .base import Provider, fail, url_on_host
+from .base import Kind, Provider, fail, url_on_host
 
 log = logging.getLogger(__name__)
 
@@ -218,6 +218,8 @@ def parse_image(png: bytes, day: date) -> Decoded:
 class Volyn(Provider):
     hosts = frozenset({"api-voe-poweron.inneti.net"})
     min_interval = 300
+    kind = Kind.PICTURE
+    page = OPTIONS_URL
 
     def __init__(self) -> None:
         # Decoded images by (path, upload time, day). Every upload gets a new file name, so

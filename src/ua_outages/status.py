@@ -1,9 +1,9 @@
 """Whether each operator's schedules can be fetched right now: one check of every source.
 
-Used by ``scripts/source_status.py`` in CI and by the Telegram bot, which checks from Ukraine
-every hour and publishes the result (fastiuk/ukraine-energy-monitor-status). Per operator: a
-shields.io endpoint badge (https://shields.io/badges/endpoint-badge), an entry of
-``summary.json`` and a row of a Markdown table.
+Used by ``scripts/source_status.py`` in CI and by the Telegram bot, which publishes what it
+sees from Ukraine to fastiuk/ukraine-energy-monitor-status. Per operator: a shields.io
+endpoint badge (https://shields.io/badges/endpoint-badge), an entry of ``summary.json`` and a
+row of a Markdown table; ``readme_table`` is the table of the core's README.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
+from urllib.parse import quote
 
 from .http import Fetcher, redact
 from .models import now_kyiv
@@ -25,6 +26,9 @@ from .registry import LATER, NOT_PUBLISHED, OPERATORS_BY_ID, REGIONS, REGIONS_BY
 ADDRESSES = {"ternopil-oe": ["Тернопіль", "Руська", "1"], "vinnytsia-oe": ["Вінниця", "Магістратська", "2"]}
 #: Short names for regions with more than one operator.
 SHORT = {"dtek-dnem": "ДТЕК", "cek": "ЦЕК"}
+#: Where the bot publishes: ``<operator>.svg`` badges, ``summary.json``, a README.
+STATUS_REPOSITORY = "https://github.com/fastiuk/ukraine-energy-monitor-status"
+STATUS_FILES = "https://raw.githubusercontent.com/fastiuk/ukraine-energy-monitor-status/main"
 
 
 @dataclass(frozen=True)
@@ -44,6 +48,13 @@ NOT_YET = Status("згодом", "lightgrey")
 NONE = Status("не публікує", "lightgrey")
 UNAVAILABLE = Status("недоступно", "lightgrey")
 OCCUPIED = Status("тимчасово окупована — буде після повернення додому", "0057b7")
+#: Not looked at yet (just started, or a per-address source nobody subscribed to).
+NOT_CHECKED = Status("ще не перевірено", "lightgrey")
+#: Every status, by a short name (for files named after them).
+STATUSES = {
+    "works": WORKS, "fallback": FALLBACK, "broken": BROKEN, "ukraine_only": UKRAINE_ONLY, "blocked": BLOCKED,
+    "not_yet": NOT_YET, "none": NONE, "unavailable": UNAVAILABLE, "occupied": OCCUPIED, "not_checked": NOT_CHECKED,
+}  # fmt: skip
 
 
 @dataclass(frozen=True)
@@ -64,16 +75,30 @@ class OperatorStatus:
         return {"schemaVersion": 1, "label": label(self.operator), "message": self.status.message, "color": self.status.color}
 
     def summary(self) -> dict[str, Any]:
+        results = {r.source: r for r in self.sources}
         return {
             "status": self.status.message,
-            "official_api": self.operator.official_api if self.operator.available else None,
-            "sources": [{"source": s.source, "result": s.result, "detail": s.detail} for s in self.sources],
+            "official": self.operator.official if self.operator.available else None,
+            "sources": [
+                {
+                    "source": s.name,
+                    "kind": str(s.kind),
+                    "official": s.official,
+                    "link": s.link,
+                    "result": results[s.name].result if s.name in results else None,
+                    "detail": results[s.name].detail if s.name in results else None,
+                }
+                for s in self.operator.sources
+            ],
         }
 
     def row(self) -> str:
         op = self.operator
         details = "; ".join(f"{s.source}: {s.result} ({s.detail})" for s in self.sources) or op.note or ""
-        return f"| {label(op)} | {cell(op.name)} | {self.status.message} | {official_api_mark(op)} | {cell(details, 1000)} |"
+        return (
+            f"| {label(op)} | {operator_name(op)} | {self.status.message} | {official_cell(op)} | {source_cell(op)} "
+            f"| {cell(details, 1000)} |"
+        )
 
 
 def ordered() -> list[Operator]:
@@ -86,10 +111,49 @@ def label(op: Operator) -> str:
     return f"{region.name} · {SHORT[op.id]}" if op.id in SHORT else region.name
 
 
-def official_api_mark(op: Operator) -> str:
-    """✅ the schedule comes from the operator's own API, ❌ from a page, a picture, a channel or a
-    mirror, — no schedules at all."""
-    return "—" if not op.available else "✅" if op.official_api else "❌"
+def operator_name(op: Operator) -> str:
+    return "—" if REGIONS_BY_ID[op.region].occupied else cell(op.name)
+
+
+def _mark(source: Provider) -> str:
+    return "✅" if source.official else "❌"
+
+
+def _link(text: str, url: str | None) -> str:
+    # Brackets and spaces in an address would end a Markdown link early.
+    return f"[{text}]({quote(url, safe=':/?&=%#.,~-_+')})" if url else text
+
+
+def official_cell(op: Operator) -> str:
+    """✅ the operator's own website, API or channel, ❌ someone else's mirror; fallbacks after
+    "резерв", — no schedules at all."""
+    if not op.sources:
+        return "—"
+    primary, *rest = op.sources
+    return _mark(primary) + (" · резерв " + " ".join(map(_mark, rest)) if rest else "")
+
+
+def source_cell(op: Operator) -> str:
+    """What each source reads (API, a page, a picture, a channel, a mirror), linked where fixed."""
+    if not op.sources:
+        return "—"
+    primary, *rest = op.sources
+    text = _link(str(primary.kind), primary.link)
+    return text + (" · резерв: " + ", ".join(_link(str(s.kind), s.link) for s in rest) if rest else "")
+
+
+def dynamic(op: Operator) -> bool:
+    """The operator's state changes and is published; occupied or without sources it is fixed."""
+    return op.available and not REGIONS_BY_ID[op.region].occupied
+
+
+def badge_markdown(op: Operator) -> str:
+    """The README's badge: published by the bot, or fixed (no fetch that could fail)."""
+    if dynamic(op):
+        return f"[![{op.id}]({STATUS_FILES}/{op.id}.svg)]({STATUS_REPOSITORY}#readme)"
+    status = verdict(op, ())
+    message = quote(status.message.replace("-", "--").replace("_", "__"), safe="")
+    return f"![{op.id}](https://img.shields.io/badge/-{message}-{status.color})"
 
 
 #: Characters with a meaning in Markdown, and what starts a bare URL GitHub turns into a
@@ -172,8 +236,19 @@ async def check_all(session: Any, *, abroad: bool = False) -> list[OperatorStatu
 
 
 def table(statuses: list[OperatorStatus]) -> str:
-    header = "| Область | Оператор | Статус | API з офіційного ресурсу | Джерела |"
-    return "\n".join([header, "|---|---|---|---|---|", *(s.row() for s in statuses)])
+    header = "| Область | Оператор | Стан | Джерело офіційне | Джерело | Відповідь джерел |"
+    return "\n".join([header, "|---|---|---|---|---|---|", *(s.row() for s in statuses)])
+
+
+def readme_table() -> str:
+    """The core README's table: every operator, its badge, its sources and 🔎 for address search."""
+    rows = [
+        f"| {label(op)} | {operator_name(op)} | {badge_markdown(op)} | {official_cell(op)} | {source_cell(op)} "
+        f"| {'🔎' if op.lookup else ''} |"
+        for op in ordered()
+    ]
+    header = "| Область | Оператор | Стан | Джерело офіційне | Джерело | 🔎 |"
+    return "\n".join([header, "|---|---|---|---|---|---|", *rows])
 
 
 def files(statuses: list[OperatorStatus], checked_at: datetime) -> dict[str, str]:

@@ -22,7 +22,7 @@ from typing import Any
 from ..http import Fetcher
 from ..models import KYIV, DaySchedule, Outage
 from ._text import parse_intervals
-from .base import Provider, fail
+from .base import Kind, Provider, fail
 
 URL = "https://www.soe.com.ua/api/vidkluchenya/get_all_data_disconnections_api"
 MAX_AGE = timedelta(hours=36)
@@ -74,6 +74,7 @@ def parse(payload: Any, now: datetime) -> dict[date, DaySchedule]:
 
 class Sumy(Provider):
     hosts = frozenset({"www.soe.com.ua"})
+    kind = Kind.API
     #: The site itself refreshes every 15 minutes.
     min_interval = 300
 

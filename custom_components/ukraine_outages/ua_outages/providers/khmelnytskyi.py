@@ -43,7 +43,7 @@ from ._image import decode_png
 from ._text import MONTHS
 from ._xlsx import MAX_BYTES as MAX_WORKBOOK
 from ._xlsx import read_sheet
-from .base import AddressLookup, Choice, Provider, Resolution, SourceFormatError, Step, fail
+from .base import AddressLookup, Choice, Kind, Provider, Resolution, SourceFormatError, Step, fail
 
 BASE_URL = "https://hoe.com.ua"
 NEWS_URL = BASE_URL + "/post/novini-kompaniji"
@@ -237,6 +237,8 @@ def parse_image(png: bytes, day: date) -> Decoded:
 class Khmelnytskyi(Provider):
     hosts = frozenset({"hoe.com.ua"})
     min_interval = 300
+    kind = Kind.PICTURE
+    page = NEWS_URL
 
     def __init__(self) -> None:
         # Decoded images (or why they could not be read) by (path, day): every upload gets a

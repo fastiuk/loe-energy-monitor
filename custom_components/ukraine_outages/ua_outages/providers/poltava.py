@@ -26,7 +26,7 @@ from ..http import Fetcher
 from ..models import DaySchedule, Outage, Slot, outages_from_slots
 from ._address import clean_label, entries, normalize_group, numeric_id, pick, require_id
 from ._html import parse_html
-from .base import AddressLookup, Choice, Provider, Resolution, Step, fail
+from .base import AddressLookup, Choice, Kind, Provider, Resolution, Step, fail
 
 URL = "https://www.poe.pl.ua/customs/newgpv-info.php"
 FILIALS_URL = "https://www.poe.pl.ua/disconnection/power-outages/"
@@ -72,6 +72,8 @@ class Poltava(Provider):
     hosts = frozenset({"www.poe.pl.ua"})
     ukraine_only = True  # times out or answers 403 from GitHub's runners
     min_interval = 300
+    kind = Kind.PAGE
+    page = FILIALS_URL
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         schedules = {}

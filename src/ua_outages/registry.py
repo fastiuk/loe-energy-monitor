@@ -65,9 +65,9 @@ class Operator:
         return bool(self.sources) and all(isinstance(s, AddressSource) for s in self.sources)
 
     @property
-    def official_api(self) -> bool:
-        """The primary source is the operator's own API (``Provider.official_api``)."""
-        return bool(self.sources) and self.sources[0].official_api
+    def official(self) -> bool:
+        """The primary source is the operator's own (``Provider.official``), not a mirror."""
+        return bool(self.sources) and self.sources[0].official
 
     @property
     def poll_interval(self) -> int:

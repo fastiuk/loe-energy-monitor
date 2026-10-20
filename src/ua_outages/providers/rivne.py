@@ -15,7 +15,7 @@ from ..http import Fetcher
 from ..models import KYIV, DaySchedule, Outage
 from ._html import Node, parse_html
 from ._text import NO_OUTAGES_RE, parse_intervals
-from .base import Provider, fail
+from .base import Kind, Provider, fail
 
 URL = "https://www.roe.vsei.ua/disconnections"
 _DATE_RE = re.compile(r"(\d{2})\.(\d{2})\.(\d{4})")
@@ -80,6 +80,8 @@ def parse(page: str) -> dict[date, DaySchedule]:
 class Rivne(Provider):
     hosts = frozenset({"www.roe.vsei.ua"})
     min_interval = 300
+    kind = Kind.PAGE
+    page = URL
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         resp = await http.get(URL)

@@ -16,7 +16,7 @@ from typing import Any
 
 from ..http import Fetcher
 from ..models import DaySchedule
-from .base import Provider, fail, url_on_host
+from .base import Kind, Provider, fail, url_on_host
 
 BASE_URL = "https://api-outage-zakarpat-energy.inneti.net"
 OPTION_KEYS = ("pw_gpv_image_today", "pw_gpv_image_tomorrow")
@@ -50,6 +50,8 @@ def published_images(payload: Any) -> list[str]:
 class Zakarpattia(Provider):
     hosts = frozenset({"api-outage-zakarpat-energy.inneti.net"})
     min_interval = 600
+    kind = Kind.PICTURE
+    page = OPTIONS_URL
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         if images := published_images((await http.get(OPTIONS_URL, headers=HEADERS)).json()):

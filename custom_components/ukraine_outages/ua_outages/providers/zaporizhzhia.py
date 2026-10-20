@@ -23,7 +23,7 @@ from ..http import Fetcher
 from ..models import DaySchedule
 from ._html import parse_html
 from ._text import find_day, parse_group_text
-from .base import Provider, fail
+from .base import Kind, Provider, fail
 
 URL = "https://www.zoe.com.ua/outage/"
 GROUPS = tuple(f"{q}.{s}" for q in range(1, 7) for s in (1, 2))
@@ -77,6 +77,8 @@ class Zaporizhzhia(Provider):
     hosts = frozenset({"www.zoe.com.ua"})
     ukraine_only = True  # times out or answers 403 from GitHub's runners
     min_interval = 300
+    kind = Kind.PAGE
+    page = URL
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         resp = await http.get(URL)

@@ -23,7 +23,7 @@ from ..http import Fetcher
 from ..models import KYIV, DaySchedule, Outage, Slot, outages_from_slots
 from ._address import MAX_ENTRIES, clean_label, numeric_id, pick, require_id
 from ._html import Node, parse_html
-from .base import AddressLookup, Choice, Provider, Resolution, Step, fail
+from .base import AddressLookup, Choice, Kind, Provider, Resolution, Step, fail
 
 URL = "https://www.ztoe.com.ua/unhooking-search.php"
 COLORS = {"#ffffff": Slot.ON, "#ff3333": Slot.OFF}
@@ -87,6 +87,8 @@ def parse(page: str) -> dict[date, DaySchedule]:
 class Zhytomyr(Provider):
     hosts = frozenset({"www.ztoe.com.ua"})
     min_interval = 300
+    kind = Kind.PAGE
+    page = URL
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         resp = await http.get(URL)

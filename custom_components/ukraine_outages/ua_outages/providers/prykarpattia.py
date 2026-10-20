@@ -20,7 +20,7 @@ from typing import Any
 from ..http import Fetcher
 from ..models import KYIV, DaySchedule, Outage
 from ._text import parse_intervals
-from .base import Provider, fail
+from .base import Kind, Provider, fail
 
 URL = "https://be-svitlo.oe.if.ua/schedule-by-queue"
 GROUPS = tuple(f"{q}.{s}" for q in range(1, 7) for s in (1, 2))
@@ -86,7 +86,7 @@ def _intervals(day: date, intervals: Any) -> tuple[Outage, ...] | None:
 class Prykarpattia(Provider):
     hosts = frozenset({"be-svitlo.oe.if.ua"})
     min_interval = 300
-    official_api = True
+    kind = Kind.API
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         schedules: dict[date, DaySchedule] = {}

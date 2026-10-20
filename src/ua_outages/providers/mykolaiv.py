@@ -26,7 +26,7 @@ from typing import Any
 from ..http import Fetcher
 from ..models import KYIV, DaySchedule, Outage, at, merge_outages
 from ._address import clean_label, entries, normalize_group, numeric_id, pick, require_id
-from .base import AddressLookup, Choice, Provider, Resolution, Step, fail
+from .base import AddressLookup, Choice, Kind, Provider, Resolution, Step, fail
 
 BASE_URL = "https://off.energy.mk.ua/api"
 MAX_ITEMS = 5000
@@ -83,7 +83,8 @@ def parse(queues: Any, series: Any, active: Any) -> dict[date, DaySchedule]:
 class Mykolaiv(Provider):
     hosts = frozenset({"off.energy.mk.ua"})
     min_interval = 300
-    official_api = True
+    kind = Kind.API
+    page = f"{BASE_URL}/v2/schedule/active"
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         queues = (await http.get(f"{BASE_URL}/outage-queue/by-type/3")).json()

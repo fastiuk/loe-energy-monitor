@@ -312,6 +312,7 @@ class _AddressPage:
 
 class Vinnytsia(AddressSource):
     hosts = HOSTS
+    ukraine_only = True  # 403 from GitHub's runners; answers Ukrainian connections, datacentres too
     #: Two requests per address and a 140 KB page each time: no need to ask more often.
     min_interval = 600
     request_gap = 2.0
@@ -373,6 +374,7 @@ class VinnytsiaLookup(AddressLookup):
 
     hosts = HOSTS
     request_gap = 1.0
+    ukraine_only = True
     steps = (
         Step("Напишіть назву населеного пункту", "Вінниця"),
         Step("Напишіть назву вулиці", "Соборна"),

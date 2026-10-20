@@ -1,7 +1,10 @@
+import importlib.util
 import json
+import sys
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
+from types import ModuleType
 
 from multidict import CIMultiDict
 
@@ -9,6 +12,7 @@ from ua_outages.http import FetchError, Response
 from ua_outages.models import KYIV
 
 FIXTURES = Path(__file__).parent / "fixtures"
+SCRIPTS = Path(__file__).parent.parent / "scripts"
 
 
 def fixture_text(name: str) -> str:
@@ -75,3 +79,12 @@ class FakeHttp:
 
 def address_fixture(name: str) -> str:
     return fixture_text(f"address/{name}")
+
+
+def load_script(name: str) -> ModuleType:
+    """``scripts/<name>.py`` as a module: the scripts are not a package."""
+    if (module := sys.modules.get(name)) is None:
+        spec = importlib.util.spec_from_file_location(name, SCRIPTS / f"{name}.py")
+        module = sys.modules[name] = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    return module

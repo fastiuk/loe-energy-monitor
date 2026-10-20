@@ -5,6 +5,7 @@ import io
 import json
 import struct
 import time
+import traceback
 import zlib
 from datetime import date, datetime
 
@@ -244,6 +245,12 @@ def test_news_items():
     assert last == OCT19
 
 
+@pytest.mark.parametrize("created", ["0001-01-01T00:00:00+01:00", "9999-12-31T23:59:59-05:00"])
+def test_posting_times_out_of_range_in_kyiv_are_skipped(created):
+    page = _page([_item(1, OCT20, "2026-10-19T16:00:00Z", image="1" * 32), _item(2, OCT20, created, image="2" * 32)])
+    assert [post.id for post in sumy_news.parse_news(page)[0]] == [1]
+
+
 @pytest.mark.parametrize(
     "markup",
     [
@@ -300,6 +307,25 @@ def test_fetch_refuses_an_image_for_another_day_and_remembers():
         with pytest.raises(SourceFormatError, match=r"image is for 18\.10\.2026, the post for 19\.10\.2026"):
             asyncio.run(source.fetch(http, kyiv(OCT19, 20)))
     assert sum(call.url.endswith(".png") for call in http.calls) == 2  # each image downloaded once
+
+
+def test_a_remembered_failure_is_raised_afresh():
+    """Only the message is kept: the exception's traceback holds the decoder's frames (the PNG,
+    the image, its planes), and raising the same exception again would grow it every poll."""
+    http = FakeHttp({
+        "/press-service/news": fixture_text("sumy_news.html"),
+        ".png": _png_route(**{IMAGE19: PNG18, IMAGE20: PNG20}),
+    })  # fmt: skip
+    source = sumy_news.SumyNews()
+    errors = []
+    for _ in range(3):
+        with pytest.raises(SourceFormatError, match="image is for 18.10.2026") as info:
+            asyncio.run(source.fetch(http, kyiv(OCT19, 20)))
+        errors.append(info.value)
+    assert len({id(err) for err in errors}) == 3
+    assert not any(isinstance(result, BaseException) for result in source._decoded.values())
+    for err in errors:
+        assert "parse_image" not in {frame.name for frame in traceback.extract_tb(err.__traceback__)}
 
 
 def test_fetch_takes_the_newest_post_of_a_day():

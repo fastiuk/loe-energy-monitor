@@ -36,10 +36,12 @@ def decode_png(data: bytes, size: tuple[int, int | range], what: str) -> Image.I
         if image.size[0] != width or not height_ok or width * tallest > MAX_PIXELS:
             expected = f"{width}×{heights}" if isinstance(heights, int) else f"{width}×{min(heights)}–{tallest}"
             fail(f"{what}: image is {image.size[0]}×{image.size[1]}, expected {expected}")
-        if image.mode in ("RGBA", "LA", "P"):
-            # Transparent pixels read as the white page they are shown on.
+        if image.mode in ("RGBA", "LA", "P") or "transparency" in image.info:
+            # Transparent pixels read as the white page they are shown on. RGB and greyscale
+            # images mark them with a tRNS colour, which only the conversion to RGBA applies.
+            rgba = image.convert("RGBA")
             page = Image.new("RGB", image.size, (255, 255, 255))
-            page.paste(image, mask=image.convert("RGBA").getchannel("A"))
+            page.paste(rgba, mask=rgba.getchannel("A"))
             return page
         return image.convert("RGB")
     except Image.DecompressionBombError as err:

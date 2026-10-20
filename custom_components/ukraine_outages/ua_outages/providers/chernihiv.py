@@ -33,6 +33,7 @@ CHANNEL = "chernigivoblenergo"
 URL = f"https://t.me/s/{CHANNEL}"
 POST_URL = f"https://t.me/{CHANNEL}/{{number}}"
 GROUPS = tuple(f"{q}.{s}" for q in range(1, 7) for s in (1, 2))
+_NUMBER_RE = re.compile(r"[0-9]{1,12}")
 MAX_POST = 5000
 MAX_TEXT = 300
 ON_PICTURE = "Години — на картинці оператора"
@@ -64,8 +65,10 @@ def _lines(node: Node) -> list[str]:
 
 def _day(match: re.Match[str], published: datetime) -> date | None:
     """The day a post means: the one nearest to when it was posted (around New Year too)."""
-    number, month = int(match[1]), MONTHS[match[2].lower()]
-    around = published.date()
+    # IGNORECASE also matches look-alikes .lower() keeps (U+1C82 for "о"): not a month.
+    if (month := MONTHS.get(match[2].lower())) is None:
+        return None
+    number, around = int(match[1]), published.date()
     for year in (around.year, around.year + 1, around.year - 1):
         try:
             day = date(year, month, number)
@@ -97,11 +100,11 @@ def parse_channel(markup: str) -> dict[date, DaySchedule]:
     for post in root.find_all("div", cls="tgme_widget_message"):
         number = post.attrs.get("data-post", "").rpartition("/")[2]
         body, moment = post.find("div", cls="tgme_widget_message_text"), post.find("time")
-        if not number.isdigit() or body is None or moment is None:
+        if not _NUMBER_RE.fullmatch(number) or body is None or moment is None:
             continue
         try:
             published = datetime.fromisoformat(moment.attrs.get("datetime", "")).astimezone(KYIV)
-        except ValueError:
+        except (ValueError, OverflowError):  # OverflowError: out of range in Kyiv time
             continue
         posts.append((int(number), published, _lines(body)))
 

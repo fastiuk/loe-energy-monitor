@@ -168,7 +168,7 @@ async def test_occupied_territories_are_listed_with_a_stub(hass: HomeAssistant, 
 
 async def test_directory_text_is_shown_literally(hass: HomeAssistant, mock_fetch) -> None:
     """Labels come from the operator's site: Markdown in them must not become links or images."""
-    hostile = "![x](https://evil.example/t.png) [тут](https://evil.example) **вул.** <img src=x>"
+    hostile = "![x](https://evil.example/t.png) [тут](https://evil.example) **вул.** <img src=x> www.evil.example/a HTTPS://b.example"
     options, resolve = _lookup("dtek-kem", [[Choice("1", hostile)], [Choice("2", "1")]], Resolution((), (hostile,)))
     with options, resolve:
         result = await _configure(hass, await _start(hass), {CONF_REGION: "kyiv"})
@@ -176,7 +176,10 @@ async def test_directory_text_is_shown_literally(hass: HomeAssistant, mock_fetch
         result = await _configure(hass, result, {CONF_QUERY: "вул"})
         chosen = result["description_placeholders"]["chosen"]
         result = await _configure(hass, result, {CONF_QUERY: "1"})
-    escaped = r"\!\[x\]\(https://evil.example/t.png\) \[тут\]\(https://evil.example\) \*\*вул.\*\* \<img src=x\>"
+    escaped = (
+        r"\!\[x\]\(https\://evil.example/t.png\) \[тут\]\(https\://evil.example\) \*\*вул.\*\* \<img src=x\>"
+        r" www\.evil.example/a HTTPS\://b.example"  # bare URLs, which the renderer links by itself
+    )
     assert chosen == escaped
     assert result["description_placeholders"] == {"other": escaped}
 
@@ -191,4 +194,4 @@ async def test_address_without_a_group_for_now_says_why(hass: HomeAssistant, moc
         result = await _configure(hass, result, {CONF_QUERY: "вул. А"})
         result = await _configure(hass, result, {CONF_QUERY: "1"})
     assert result["type"] is FlowResultType.ABORT and result["reason"] == "no_group_now"
-    assert result["description_placeholders"] == {"reason": r"Чергу видно лише тоді, коли діють графіки \[детальніше\]\(https://evil.example\)"}
+    assert result["description_placeholders"] == {"reason": r"Чергу видно лише тоді, коли діють графіки \[детальніше\]\(https\://evil.example\)"}

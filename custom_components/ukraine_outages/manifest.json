@@ -9,5 +9,5 @@
   "issue_tracker": "https://github.com/fastiuk/ukraine-energy-monitor/issues",
   "loggers": ["custom_components.ukraine_outages.ua_outages"],
   "requirements": [],
-  "version": "0.4.0"
+  "version": "0.4.1"
 }

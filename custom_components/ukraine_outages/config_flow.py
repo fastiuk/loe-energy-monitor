@@ -39,12 +39,17 @@ from .ua_outages.providers._address import clean_query
 from .ua_outages.registry import REGIONS_BY_ID
 
 
-#: Characters with a meaning in the Markdown HA renders form descriptions with.
-_MARKDOWN_RE = re.compile(r"([\\`*_{}\[\]()<>#+!|~&])")
+#: Characters with a meaning in the Markdown HA renders form descriptions with, and what
+#: starts a bare URL it turns into a link: the ":" of "://", the "." after "www".
+_MARKDOWN_RE = re.compile(r"([\\`*_{}\[\]()<>#+!|~&]|:(?=//)|(?<=www)\.)", re.IGNORECASE)
 
 
 def _md(text: str) -> str:
-    """Text from an operator's directory, shown literally: no links, images or markup."""
+    """Text from an operator's directory, shown literally: no links, images or markup.
+
+    Each of those characters gets a backslash, which the renderer drops: "https\\://x" and
+    "www\\.x" show as "https://x" and "www.x", but not as links.
+    """
     return _MARKDOWN_RE.sub(r"\\\1", text)
 
 

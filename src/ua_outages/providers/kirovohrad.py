@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from ..http import Fetcher
 from ..models import KYIV, DaySchedule, Outage, at, merge_outages
@@ -34,7 +34,10 @@ GROUPS = tuple(f"{q}.{s}" for q in range(1, 7) for s in (1, 2))
 #: The city channel has the least local news; a district channel posts the same text.
 CHANNELS = ("SvitloKropyvnytskyiMisto", "SvitloOleksandriyskohoRaionu")
 _CHANNEL_RE = re.compile(r"[A-Za-z0-9_]{5,32}")
+_NUMBER_RE = re.compile(r"[0-9]{1,12}")
 MAX_POST = 5000
+#: A post is for the day it is published or the next; further away it is not a schedule.
+MAX_LEAD = timedelta(days=3)
 
 _DAY_RE = re.compile(
     r"Укренерго\W{0,3}\s{0,3}(\d{2})\.(\d{2})\.(\d{4})\s{1,3}(буде|внесено|застосування)", re.IGNORECASE
@@ -88,6 +91,9 @@ def parse_post(lines: list[str], published: datetime) -> DaySchedule | None:
         day = date(int(m[3]), int(m[2]), int(m[1]))
     except ValueError:
         return None
+    # 31.12.9999 has no midnight to end an outage at.
+    if abs(day - published.date()) > MAX_LEAD or day == date.max:
+        return None
     groups: dict[str, tuple[Outage, ...]] = dict.fromkeys(GROUPS, ())
     unknown: dict[str, str] = {}
     if not _CANCELLED_RE.search(text):
@@ -112,11 +118,11 @@ def parse_channel(markup: str) -> dict[date, DaySchedule]:
     for post in root.find_all("div", cls="tgme_widget_message"):
         number = post.attrs.get("data-post", "").rpartition("/")[2]
         body, moment = post.find("div", cls="tgme_widget_message_text"), post.find("time")
-        if not number.isdigit() or body is None or moment is None:
+        if not _NUMBER_RE.fullmatch(number) or body is None or moment is None:
             continue
         try:
             published = datetime.fromisoformat(moment.attrs.get("datetime", "")).astimezone(KYIV)
-        except ValueError:
+        except (ValueError, OverflowError):  # OverflowError: out of range in Kyiv time
             continue
         schedule = parse_post(_lines(body), published)
         if schedule is not None and (schedule.day not in newest or newest[schedule.day][0] < int(number)):
@@ -138,5 +144,7 @@ class Kirovohrad(Provider):
         return f"Telegram {self.channel}"
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
+        today = now.astimezone(KYIV).date()
         resp = await http.get(URL.format(channel=self.channel))
-        return await asyncio.to_thread(parse_channel, resp.text())
+        schedules = await asyncio.to_thread(parse_channel, resp.text())
+        return {day: s for day, s in schedules.items() if today <= day <= today + timedelta(days=1)}

@@ -50,9 +50,9 @@ def _datetime(value: Any) -> datetime | None:
         return None
     try:
         moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
+        return moment.astimezone(KYIV) if moment.tzinfo else None
+    except (ValueError, OverflowError):  # OverflowError: out of range in Kyiv time
         return None
-    return moment.astimezone(KYIV) if moment.tzinfo else None
 
 
 def _outages(day: date, data: Any) -> tuple[Outage, ...] | None:

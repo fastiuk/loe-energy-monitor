@@ -215,7 +215,7 @@ def _outages(day: date, cells: list[Node]) -> tuple[Outage, ...] | None:
 def _queue(table: Node) -> str | None:
     """ "<p>1.1 черга</p>" right in the table (not in its message)."""
     for child in table.children:
-        if isinstance(child, Node) and child.tag == "p" and (m := _QUEUE_RE.search(child.text()[:80])):
+        if isinstance(child, Node) and child.tag == "p" and (m := _QUEUE_RE.search(child.text(80))):
             return normalize_group(f"{m[1] or m[3]}.{m[2] or m[4]}")
     return None
 

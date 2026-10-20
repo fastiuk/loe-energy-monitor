@@ -8,16 +8,18 @@ from datetime import date
 import aiohttp
 import pytest
 from aiohttp import web
-
+from conftest import fixture_json, load_script
 from multidict import CIMultiDict
 
 from ua_outages.http import FetchError, Fetcher, Response, Throttle, forbidden_host, ssl_context
-from ua_outages.providers import kharkiv
+from ua_outages.providers import kharkiv, mykolaiv, ternopil, yasno
 from ua_outages.providers._html import MAX_NODES, TooManyNodes, parse_html
-from ua_outages.providers._text import MAX_TEXT, html_lines, parse_group_text, parse_intervals
+from ua_outages.providers._text import MAX_TEXT, find_day, html_lines, parse_group_text, parse_intervals, plain_text
+from ua_outages.providers.base import SourceFormatError
 from ua_outages.providers.loe import _image_url
 
 DAY = date(2026, 10, 17)
+KHARKIV_TITLE = "<title>У Харківській області 17 жовтня діятимуть графіки погодинних відключень</title>"
 
 
 def _fast(fn, *args, limit: float = 2.0):
@@ -71,6 +73,46 @@ def test_text_parsers_are_linear(text):
     _fast(parse_group_text, DAY, text)
     _fast(html_lines, text)
     _fast(parse_intervals, DAY, text[:MAX_TEXT])
+
+
+def test_text_with_a_limit_reads_only_the_start():
+    root = parse_html("<div>" + "<p>слово</p>" * 40_000 + "</div>")
+    text = _fast(root.text, 100)
+    assert len(text) <= 100 and text.startswith("слово слово")
+    assert parse_html("<p>1.1  08:00-10:00</p><p>1.2</p>").text(14) == "1.1 08:00-10"
+
+
+@pytest.mark.parametrize(
+    "markup",
+    ["<p>&#" + "1" * 5000 + ";</p>", '<a title="&#' + "1" * 5000 + '">x</a>', "<p>&#" + "1" * 5000],
+    ids=["text", "attribute", "unclosed"],
+)
+def test_overlong_character_references_are_a_format_error(markup):
+    """html.unescape raises ValueError for a decimal reference of over 4300 digits."""
+    for parse in (parse_html, html_lines, plain_text):
+        with pytest.raises(SourceFormatError):
+            _fast(parse, markup)
+    with pytest.raises(SourceFormatError):
+        kharkiv.parse_feed(f"<rss><item>{KHARKIV_TITLE}<description>{markup}</description></item></rss>", DAY)
+
+
+def test_look_alike_letters_are_not_months():
+    # IGNORECASE matches U+1C82 (wide o) for "о"; .lower() keeps it, so it names no month.
+    assert find_day("Графік на 17 ж\u1c82втня", near=DAY) is None
+    assert find_day("Графік на 17 жовтня", near=DAY) == DAY
+
+
+@pytest.mark.parametrize("moment", ["0001-01-01T00:00:00+01:00", "9999-12-31T23:59:59-05:00"])
+def test_times_out_of_range_in_kyiv_are_not_crashes(moment):
+    """Valid ISO times that fall before year 1 or after 9999 in Kyiv time: astimezone overflows."""
+    assert ternopil._datetime(moment) is None and yasno._datetime(moment) is None
+    with pytest.raises(SourceFormatError):
+        mykolaiv.parse(fixture_json("mykolaiv_queues.json"), fixture_json("mykolaiv_series.json"), [{"from": moment}])
+
+
+def test_rss_dates_out_of_range_in_kyiv_are_not_crashes():
+    item = f"{KHARKIV_TITLE}<pubDate>Fri, 31 Dec 9999 23:59:59 -0500</pubDate><description>1.1 10:00-12:00</description>"
+    assert kharkiv.parse_feed(f"<rss><item>{item}</item></rss>", DAY)[DAY].updated_at is None
 
 
 def test_invalid_times_are_rejected():
@@ -250,13 +292,11 @@ def test_fetcher_refuses_other_ports():
 
 
 def test_status_summary_cells_stay_plain_text():
-    import importlib.util
-    import sys
-    from pathlib import Path
-
-    path = Path(__file__).parent.parent / "scripts" / "source_status.py"
-    spec = importlib.util.spec_from_file_location("source_status", path)
-    module = sys.modules["source_status"] = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    cell = module.cell("HTTP 500 | ![x](https://evil.example/t.png)\n## big")
-    assert cell == r"HTTP 500 \| \!\[x\]\(https://evil.example/t.png\) \#\# big"
+    cell = load_script("source_status").cell
+    assert cell("HTTP 500 | ![x](https://evil.example/t.png)\n## big") == (
+        r"HTTP 500 \| \!\[x\]\(https\://evil.example/t.png\) \#\# big"
+    )
+    # Bare URLs, which GitHub links without any markup (a hostile option value in an error).
+    assert cell("bad value HTTPS://evil.example/x or www.evil.example, WWW.x; 10:00 at 1.1") == (
+        r"bad value HTTPS\://evil.example/x or www\.evil.example, WWW\.x; 10:00 at 1.1"
+    )

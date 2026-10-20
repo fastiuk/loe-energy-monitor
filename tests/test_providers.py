@@ -35,6 +35,7 @@ from ua_outages.providers import (
     zaporizhzhia,
     zhytomyr,
 )
+from ua_outages.providers._image import decode_png
 from ua_outages.providers.base import SourceBlocked, SourceFormatError
 from ua_outages.registry import STANDARD_GROUPS
 
@@ -327,6 +328,17 @@ def test_volyn_grid_colours_are_checked():
         volyn.parse_image(out.getvalue(), OCT18)
 
 
+def test_transparent_colour_reads_as_white():
+    """RGB and greyscale PNGs mark transparency with one colour (tRNS), not an alpha channel."""
+    for mode, transparent, ink, read in (("RGB", (0, 0, 0), (68, 110, 155), (68, 110, 155)), ("L", 0, 100, (100,) * 3)):
+        image = Image.new(mode, (2, 1), transparent)
+        image.putpixel((1, 0), ink)
+        out = io.BytesIO()
+        image.save(out, "PNG", transparency=transparent)
+        decoded = decode_png(out.getvalue(), (2, 1), "Test")
+        assert decoded.getpixel((0, 0)) == (255, 255, 255) and decoded.getpixel((1, 0)) == read
+
+
 def test_volyn_options_and_archive():
     assert volyn.parse_options(fixture_json("volyn_options.json")) == ["/media/2026/10/6ad3c89bb9049_GPV.png"]
     versions = volyn.parse_archive(fixture_json("volyn_archive.json"))
@@ -427,6 +439,40 @@ def test_kirovohrad_posts():
         kirovohrad.Kirovohrad("../evil")
 
 
+def _channel(channel: str, *posts) -> str:
+    """A Telegram channel preview with posts of (number, time, text)."""
+    items = "".join(
+        f'<div class="tgme_widget_message" data-post="{channel}/{n}"><div class="tgme_widget_message_text">'
+        f'{text}</div><time datetime="{when}"></time></div>'
+        for n, when, text in posts
+    )
+    return f'<section class="tgme_channel_history">{items}</section>'
+
+
+def test_kirovohrad_hostile_posts():
+    def text(day):
+        return f'За розпорядженням НЕК "Укренерго" {day} буде діяти наступний графік:<br/>Черга 1.1: 22:00-24:00'
+
+    good = (1, "2026-10-17T06:00:00+00:00", text("17.10.2026"))
+    for hostile in [
+        ("²", "2026-10-17T07:00:00+00:00", text("17.10.2026")),  # isdigit() but not int()
+        ("1" * 5000, "2026-10-17T07:00:00+00:00", text("17.10.2026")),  # over int()'s 4300 digits
+        (2, "0001-01-01T00:00:00+01:00", text("17.10.2026")),  # before year 1 in Kyiv time
+        (2, "9999-12-31T23:59:59-05:00", text("17.10.2026")),  # after 9999 in Kyiv time
+        (2, "2026-10-17T07:00:00+00:00", text("31.12.9999")),  # far from when it was posted
+        (2, "9999-12-31T10:00:00+00:00", text("31.12.9999")),  # no midnight after it
+    ]:
+        schedules = kirovohrad.parse_channel(_channel("SvitloKropyvnytskyiMisto", good, hostile))
+        assert list(schedules) == [OCT17] and schedules[OCT17].updated_at == kyiv(OCT17, 9)
+
+
+def test_kirovohrad_fetch_keeps_today_and_tomorrow():
+    http = RoutedHttp({"/s/SvitloKropyvnytskyiMisto": fixture_text("kirovohrad_tg.html")})
+    source = kirovohrad.Kirovohrad("SvitloKropyvnytskyiMisto")
+    assert list(asyncio.run(source.fetch(http, kyiv(OCT17, 20)))) == [OCT17]
+    assert asyncio.run(source.fetch(http, kyiv(OCT18, 9))) == {}  # 17.10 is over
+
+
 def test_khmelnytskyi_news_and_post():
     assert khmelnytskyi.parse_news(fixture_text("khmelnytskyi_news.html")) == [
         ("/post/pogodinni-vidkljuchennja-na-17-zhovtnja.html", date(2026, 10, 17))
@@ -457,6 +503,27 @@ def test_khmelnytskyi_dates_and_corrections():
     assert khmelnytskyi.parse_post('<div class="post"><p>Графік буде згодом</p></div>') == (None, None, None)
     with pytest.raises(SourceFormatError):
         khmelnytskyi.parse_news("<html>Just a moment...</html>")
+
+
+def test_khmelnytskyi_nested_items_are_read_once():
+    """Each item's text was built from its whole subtree: 200 nested items took seconds of CPU."""
+    item = (
+        '<article class="item"><div class="heading"><a href="/post/x.html">Погодинні відключення на 17 жовтня</a>'
+        "</div><span>16 Жов 2026</span><p>" + "новина " * 1200 + "</p>"
+    )
+    start = time.perf_counter()
+    assert khmelnytskyi.parse_news(item * 200 + "</article>" * 200) == [("/post/x.html", OCT17)]
+    assert time.perf_counter() - start < 2
+
+
+def test_khmelnytskyi_look_alike_months():
+    # IGNORECASE matches U+1C82 (wide o) for "о"; .lower() keeps it, so it names no month.
+    for title, posted in (("17 ж\u1c82втня", "16 Жов 2026"), ("17 жовтня", "16 Ж\u1c82в 2026")):
+        article = (
+            f'<article class="item"><div class="heading"><a href="/post/x.html">Погодинні відключення на {title}</a>'
+            f"</div><span>{posted}</span></article>"
+        )
+        assert khmelnytskyi.parse_news(article) == []
 
 
 @pytest.mark.parametrize(
@@ -527,6 +594,22 @@ def test_khmelnytskyi_fetch_reads_today_and_tomorrow_and_reuses_images():
     assert asyncio.run(source.fetch(http, kyiv(OCT18, 9))) == {}  # 17.10 is over: nothing to show
 
 
+def test_khmelnytskyi_remembers_an_image_it_cannot_read():
+    http = RoutedHttp({
+        "/post/novini-kompaniji": fixture_text("khmelnytskyi_news.html"),
+        "/post/pogodinni-vidkljuchennja-na-17-zhovtnja.html": fixture_text("khmelnytskyi_post.html"),
+        "/file20261017164437203.png": b"GIF89a" + bytes(100),
+    })  # fmt: skip
+    source = khmelnytskyi.Khmelnytskyi()
+    for minute in (0, 5):
+        with pytest.raises(SourceFormatError, match="not a readable PNG"):
+            asyncio.run(source.fetch(http, kyiv(OCT17, 18, minute)))
+    assert sum(call.url.endswith(".png") for call in http.calls) == 1  # not downloaded and decoded again
+    assert all(isinstance(result, str) for result in source._decoded.values())
+    asyncio.run(source.fetch(http, kyiv(OCT18, 9)))
+    assert source._decoded == {}  # only what the last poll used is kept
+
+
 def test_chernihiv():
     schedules = chernihiv.parse_channel(fixture_text("chernihiv_tg.html"))
     assert list(schedules) == [date(2026, 10, 16), OCT17, OCT18]
@@ -570,6 +653,21 @@ def test_chernihiv_posts():
         chernihiv.parse_channel("<html>Just a moment...</html>")
     later = asyncio.run(chernihiv.Chernihiv().fetch(RoutedHttp({"/s/chernigivoblenergo": fixture_text("chernihiv_tg.html")}), kyiv(OCT18, 9)))
     assert list(later) == [OCT18]  # only today and tomorrow
+
+
+def test_chernihiv_hostile_posts():
+    announced = "17 жовтня в області діятиме Графік погодинних відключень"
+    good = (1, "2026-10-16T18:00:00+00:00", announced)
+    for hostile in [
+        ("²", "2026-10-16T19:00:00+00:00", announced),  # isdigit() but not int()
+        ("1" * 5000, "2026-10-16T19:00:00+00:00", announced),  # over int()'s 4300 digits
+        (2, "0001-01-01T00:00:00+01:00", announced),  # before year 1 in Kyiv time
+        (2, "9999-12-31T23:59:59-05:00", announced),  # after 9999 in Kyiv time
+        # IGNORECASE matches U+1C82 (wide o) for "о"; .lower() keeps it, so it names no month.
+        (2, "2026-10-16T19:00:00+00:00", announced.replace("жовтня", "ж\u1c82втня")),
+    ]:
+        schedules = chernihiv.parse_channel(_channel("chernigivoblenergo", good, hostile))
+        assert list(schedules) == [OCT17] and schedules[OCT17].image_url.endswith("/1")
 
 
 def test_zakarpattia_watches_for_a_schedule():

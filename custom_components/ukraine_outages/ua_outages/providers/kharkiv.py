@@ -8,14 +8,13 @@
 from __future__ import annotations
 
 import asyncio
-import html
 import re
 from datetime import date, datetime
 from email.utils import parsedate_to_datetime
 
 from ..http import Fetcher
 from ..models import KYIV, DaySchedule
-from ._text import find_day, html_lines, parse_group_text
+from ._text import find_day, html_lines, parse_group_text, unescape
 from .base import Provider, fail
 
 URL = "https://oblenergo.kharkiv.ua/uk/rss.xml"
@@ -47,18 +46,18 @@ def parse_feed(feed: str, today: date) -> dict[date, DaySchedule]:
         fail("Kharkiv: not an RSS feed")
     best: dict[date, DaySchedule] = {}
     for item in _elements(feed, "item", MAX_ITEM):
-        title = html.unescape(_first(item, "title", 1000).strip())
+        title = unescape(_first(item, "title", 1000).strip())
         if not _SCHEDULE_RE.search(title) or "ГОП" in title:
             continue
         try:
             stamp = _first(item, "pubDate", 100).strip()
             published = parsedate_to_datetime(stamp).astimezone(KYIV) if stamp else None
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             published = None
         day = find_day(title, near=published.date() if published else today)
         if day is None or day < today:
             continue
-        body = html.unescape(_first(item, "description", MAX_ITEM))
+        body = unescape(_first(item, "description", MAX_ITEM))
         text = "\n".join(html_lines(body))
         groups, unknown = parse_group_text(day, text)
         if not groups and not unknown:

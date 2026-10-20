@@ -10,6 +10,7 @@ import re
 from datetime import date, timedelta
 
 from ..models import Outage, at, merge_outages
+from .base import fail
 
 #: A real day's text is a few KB; anything far bigger is not a schedule.
 MAX_TEXT = 200_000
@@ -32,17 +33,25 @@ INTERVAL_RE = re.compile(
 _DAY_MONTH_RE = re.compile(r"(?<!\d)(\d{1,2})\s{1,3}(" + "|".join(MONTHS) + r")", re.IGNORECASE)
 
 
+def unescape(text: str) -> str:
+    """``html.unescape``, with ``SourceFormatError`` instead of its ``ValueError``."""
+    try:
+        return html.unescape(text)
+    except ValueError as err:  # "&#" and thousands of digits
+        fail(f"unreadable character reference ({err})")
+
+
 def html_lines(markup: str) -> list[str]:
     """Visible text of an HTML fragment, one non-empty line per block element."""
     text = _BLOCK_TAG_RE.sub("\n", markup[:MAX_TEXT])
-    text = html.unescape(_TAG_RE.sub("", text))
+    text = unescape(_TAG_RE.sub("", text))
     lines = (_SPACE_RE.sub(" ", line).strip() for line in text.splitlines())
     return [line for line in lines if line]
 
 
 def plain_text(markup: str) -> str:
     """Text of an inline fragment where tags may split words ("<span>16</span><span>:00</span>")."""
-    return _SPACE_RE.sub(" ", html.unescape(_TAG_RE.sub("", markup[:MAX_TEXT]))).strip()
+    return _SPACE_RE.sub(" ", unescape(_TAG_RE.sub("", markup[:MAX_TEXT]))).strip()
 
 
 def parse_intervals(day: date, text: str) -> tuple[Outage, ...] | None:
@@ -66,9 +75,10 @@ def parse_intervals(day: date, text: str) -> tuple[Outage, ...] | None:
 
 def find_day(text: str, *, near: date) -> date | None:
     """The first "17 жовтня" in ``text`` as a date, picking the year closest to ``near``."""
-    if not (m := _DAY_MONTH_RE.search(text)):
+    # IGNORECASE also matches look-alikes .lower() keeps (U+1C82 for "о"): not a month.
+    if not (m := _DAY_MONTH_RE.search(text)) or (month := MONTHS.get(m[2].lower())) is None:
         return None
-    day, month = int(m[1]), MONTHS[m[2].lower()]
+    day = int(m[1])
     candidates = []
     for year in (near.year - 1, near.year, near.year + 1):
         try:

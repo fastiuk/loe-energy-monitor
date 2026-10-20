@@ -64,7 +64,7 @@ def parse(queues: Any, series: Any, active: Any) -> dict[date, DaySchedule]:
             continue
         try:
             day = datetime.fromisoformat(str(item.get("from")).replace("Z", "+00:00")).astimezone(KYIV).date()
-        except ValueError:
+        except (ValueError, OverflowError):
             fail("Mykolaiv: schedule has no valid 'from'")
         outages: dict[str, list[Outage]] = defaultdict(list)
         for cell in _list(item.get("series"), "series"):

@@ -27,7 +27,7 @@ from ..models import KYIV, DaySchedule, Outage, Slot, outages_from_slots
 from ._html import Node, parse_html
 from ._image import decode_png
 from ._text import MONTHS
-from .base import Provider, fail
+from .base import Provider, SourceFormatError, fail
 
 BASE_URL = "https://hoe.com.ua"
 NEWS_URL = BASE_URL + "/post/novini-kompaniji"
@@ -45,6 +45,7 @@ _TITLE_RE = re.compile(
     r"Погодинні\s{1,3}відключення\s{1,3}на\s{1,3}(\d{1,2})\s{1,3}(" + "|".join(MONTHS) + r")", re.IGNORECASE
 )
 _SHORT_MONTHS = ("січ", "лют", "бер", "кві", "тра", "чер", "лип", "сер", "вер", "жов", "лис", "гру")
+_POSTED_MONTHS = {name: number for number, name in enumerate(_SHORT_MONTHS, 1)}
 _POSTED_RE = re.compile(r"(\d{1,2})\s{1,3}(" + "|".join(_SHORT_MONTHS) + r")\w{0,8}\.?\s{1,3}(\d{4})", re.IGNORECASE)
 _POST_PATH_RE = re.compile(r"/post/[A-Za-z0-9_-]{1,160}\.html")
 _IMAGE_RE = re.compile(r"/Content/Uploads/\d{4}/\d{2}/file(\d{17})\.png", re.IGNORECASE)
@@ -57,7 +58,8 @@ Decoded = tuple[dict[str, tuple[Outage, ...]], dict[str, str]]
 def parse_news(markup: str) -> list[tuple[str, date]]:
     """(post path, schedule day) for every schedule post in the news list, newest first."""
     root = parse_html(markup)
-    articles = root.find_all("article", cls="item")
+    # Items inside items are not news: reading each one's text again would be quadratic.
+    articles = root.find_all("article", cls="item", nested=False)
     if not articles:
         fail("Khmelnytskyi: no news items on the page")
     posts = []
@@ -66,11 +68,15 @@ def parse_news(markup: str) -> list[tuple[str, date]]:
         link = heading.find("a") if heading else None
         if link is None or not _POST_PATH_RE.fullmatch(link.attrs.get("href", "")):
             continue
-        title, posted = _TITLE_RE.search(link.text()[:300]), _POSTED_RE.search(article.text()[:2000])
-        if title is None or posted is None:
+        if (title := _TITLE_RE.search(link.text(300))) is None:
             continue
-        day, month = int(title[1]), MONTHS[title[2].lower()]
-        posted_month = _SHORT_MONTHS.index(posted[2].lower()) + 1
+        if (posted := _POSTED_RE.search(article.text(2000))) is None:
+            continue
+        # IGNORECASE also matches look-alikes .lower() keeps (U+1C82 for "о"): not a month.
+        month, posted_month = MONTHS.get(title[2].lower()), _POSTED_MONTHS.get(posted[2].lower())
+        if month is None or posted_month is None:
+            continue
+        day = int(title[1])
         year = int(posted[3]) + (1 if posted_month == 12 and month == 1 else 0)
         try:
             posts.append((link.attrs["href"], date(year, month, day)))
@@ -216,8 +222,9 @@ class Khmelnytskyi(Provider):
     min_interval = 300
 
     def __init__(self) -> None:
-        # Decoded images by (path, day): every upload gets a new name, so a known path is unchanged.
-        self._decoded: dict[tuple[str, date], Decoded] = {}
+        # Decoded images (or why they could not be read) by (path, day): every upload gets a
+        # new name, so a known path is unchanged.
+        self._decoded: dict[tuple[str, date], Decoded | str] = {}
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         today = now.astimezone(KYIV).date()
@@ -225,7 +232,7 @@ class Khmelnytskyi(Provider):
         for path, day in await asyncio.to_thread(parse_news, (await http.get(NEWS_URL)).text()):
             if today <= day <= today + timedelta(days=1):
                 posts.setdefault(day, path)  # the list is newest first
-        schedules, decoded = {}, {}
+        schedules, decoded, errors = {}, {}, []
         for day, path in sorted(posts.items()):
             image, uploaded, correction = await asyncio.to_thread(parse_post, (await http.get(BASE_URL + path)).text())
             if image is None:
@@ -233,10 +240,19 @@ class Khmelnytskyi(Provider):
             key = (image, day)
             if (result := self._decoded.get(key)) is None:
                 png = (await http.get(BASE_URL + image)).body
-                result = await asyncio.to_thread(parse_image, png, day)
+                try:
+                    result = await asyncio.to_thread(parse_image, png, day)
+                except SourceFormatError as err:
+                    # The message only: the exception's traceback holds the decoder's frames.
+                    result = str(err)
             decoded[key] = result
+            if isinstance(result, str):
+                errors.append(result)
+                continue
             groups, unknown = result
             notes = (correction,) if correction else ()
             schedules[day] = DaySchedule(day, uploaded, groups, unknown, notes, image_url=BASE_URL + image)
         self._decoded = decoded
+        if errors:
+            fail(errors[0])
         return schedules

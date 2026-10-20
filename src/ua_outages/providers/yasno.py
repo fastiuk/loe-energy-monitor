@@ -118,9 +118,9 @@ def _datetime(value: Any) -> datetime | None:
         return None
     try:
         moment = datetime.fromisoformat(value)
-    except ValueError:
+        return moment.astimezone(KYIV) if moment.tzinfo else None
+    except (ValueError, OverflowError):  # OverflowError: out of range in Kyiv time
         return None
-    return moment.astimezone(KYIV) if moment.tzinfo else None
 
 
 class Yasno(Provider):

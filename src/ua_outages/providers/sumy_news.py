@@ -191,9 +191,9 @@ def _posted(value: Any) -> datetime | None:
         return None
     try:
         moment = datetime.fromisoformat(value)
-    except ValueError:
+        return (moment if moment.tzinfo else moment.replace(tzinfo=KYIV)).astimezone(KYIV)
+    except (ValueError, OverflowError):  # OverflowError: out of range in Kyiv time
         return None
-    return (moment if moment.tzinfo else moment.replace(tzinfo=KYIV)).astimezone(KYIV)
 
 
 def parse_news(markup: str) -> tuple[list[Post], date | None]:
@@ -852,7 +852,7 @@ class SumyNews(Provider):
     def __init__(self) -> None:
         # Decoded images (or why they could not be read) by URL and day. Every upload gets a
         # new name, so a known URL is an unchanged image: no need to download it every poll.
-        self._decoded: dict[tuple[str, date], Decoded | SourceFormatError] = {}
+        self._decoded: dict[tuple[str, date], Decoded | str] = {}
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         today = now.astimezone(KYIV).date()
@@ -884,14 +884,16 @@ class SumyNews(Provider):
                     # Decoding takes a fraction of a second of CPU: keep it off the event loop.
                     result = await asyncio.to_thread(parse_image, png, day)
                 except SourceFormatError as err:
-                    result = err
+                    # The message only: the exception's traceback holds the decoder's frames
+                    # (the PNG, the image, its planes), and raising it again would grow it.
+                    result = str(err)
             decoded[key] = result
-            if isinstance(result, SourceFormatError):
+            if isinstance(result, str):
                 errors.append(result)
                 continue
             groups, unknown = result
             schedules[day] = DaySchedule(day, post.posted, groups, unknown, image_url=post.image_url)
         self._decoded = decoded
         if errors:
-            raise errors[0]
+            fail(errors[0])
         return schedules

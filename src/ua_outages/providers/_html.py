@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from html.parser import HTMLParser
 
 from ..http import FetchError
+from .base import fail
 
 _VOID = frozenset(
     "area base br col embed hr img input link meta param source track wbr".split()
@@ -56,14 +57,24 @@ class Node:
             yield node
             stack.extend(c for c in reversed(node.children) if isinstance(c, Node))
 
-    def find_all(self, tag: str | None = None, *, cls: str | None = None, id: str | None = None) -> list[Node]:
-        return [
-            n
-            for n in self.iter()
-            if (tag is None or n.tag == tag)
-            and (cls is None or cls in n.classes)
-            and (id is None or n.attrs.get("id") == id)
-        ]
+    def find_all(
+        self, tag: str | None = None, *, cls: str | None = None, id: str | None = None, nested: bool = True
+    ) -> list[Node]:
+        """Matching elements in document order; ``nested=False`` leaves out those inside another match."""
+        found: list[Node] = []
+        stack: list[Node] = [self]
+        while stack:
+            node = stack.pop()
+            if (
+                (tag is None or node.tag == tag)
+                and (cls is None or cls in node.classes)
+                and (id is None or node.attrs.get("id") == id)
+            ):
+                found.append(node)
+                if not nested:
+                    continue
+            stack.extend(c for c in reversed(node.children) if isinstance(c, Node))
+        return found
 
     def find(self, tag: str | None = None, *, cls: str | None = None, id: str | None = None) -> Node | None:
         return next(
@@ -77,21 +88,28 @@ class Node:
             None,
         )
 
-    def text(self) -> str:
-        """All text inside, with runs of whitespace collapsed to one space."""
+    def text(self, limit: int | None = None) -> str:
+        """All text inside, with runs of whitespace collapsed to one space.
+
+        ``limit`` stops collecting after that many characters (whitespace included), so a
+        huge subtree costs no more than its start; the result is at most ``limit`` long.
+        """
         parts: list[str] = []
+        size = 0
         stack: list[Node | str] = [self]
-        while stack:
+        while stack and (limit is None or size < limit):
             item = stack.pop()
             if isinstance(item, str):
                 parts.append(item)
+                size += len(item)
             else:
                 if item.tag in _BLOCK:
                     # "<p>08:00-10:00</p><p>20:00-22:00</p>" must not run together.
                     parts.append(" ")
+                    size += 1
                     stack.append(" ")
                 stack.extend(reversed(item.children))
-        return _SPACE_RE.sub(" ", "".join(parts)).strip()
+        return _SPACE_RE.sub(" ", "".join(parts)[:limit]).strip()
 
 
 class TooManyNodes(FetchError):
@@ -161,6 +179,9 @@ class _Builder(HTMLParser):
 
 def parse_html(markup: str) -> Node:
     builder = _Builder()
-    builder.feed(markup)
-    builder.close()
+    try:
+        builder.feed(markup)
+        builder.close()
+    except ValueError as err:  # html.unescape on "&#" and thousands of digits
+        fail(f"unreadable HTML ({err})")
     return builder.root

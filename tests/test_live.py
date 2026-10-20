@@ -8,10 +8,14 @@ import asyncio
 import os
 
 import pytest
+from conftest import load_script
 
 from ua_outages import AddressSource, Fetcher, SourceBlocked, now_kyiv, operator
 from ua_outages.http import new_session
 from ua_outages.registry import OPERATORS, available_operators
+
+#: Labels from the operators' directories are untrusted: plain text in the job summary.
+cell = load_script("source_status").cell
 
 pytestmark = pytest.mark.skipif(os.environ.get("LIVE") != "1", reason="set LIVE=1 to query the real sources")
 
@@ -74,7 +78,7 @@ def test_address_lookup(operator_id):
     # Some operators show an address's group only while schedules apply: they say why.
     assert resolution.groups or resolution.reason, f"{operator_id}: {address} is in no group ({resolution.other})"
     assert set(resolution.groups) <= set(op.groups), f"{operator_id}: unknown groups {resolution.groups}"
-    line = f"- **{operator_id}** адреса: {address} → {', '.join(resolution.groups)}"
+    line = f"- **{operator_id}** адреса: {cell(address)} → {', '.join(resolution.groups)}"
     if schedules is not None:
         for schedule in schedules.values():
             assert set(schedule.mentioned_groups()) <= set(op.groups)

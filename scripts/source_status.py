@@ -52,10 +52,19 @@ def ordered() -> list[Operator]:
     return [OPERATORS_BY_ID[o] for region in REGIONS for o in region.operators]
 
 
+#: Characters with a meaning in Markdown, and what starts a bare URL GitHub turns into a
+#: link: the ":" of "://", the "." after "www".
+_MARKDOWN_RE = re.compile(r"([\\`*_{}\[\]()<>#+!|~&]|:(?=//)|(?<=www)\.)", re.IGNORECASE)
+
+
 def cell(text: str, limit: int = 300) -> str:
-    """Error text from a source, shown as-is in the Markdown job summary (no links, no extra columns)."""
+    """Error text from a source, shown as-is in the Markdown job summary (no links, no extra columns).
+
+    Each of those characters gets a backslash, which the renderer drops: "https\\://x" and
+    "www\\.x" show as "https://x" and "www.x", but not as links.
+    """
     text = " ".join(text.split())[:limit]
-    return re.sub(r"([\\`*_{}\[\]()<>#+!|~&])", r"\\\1", text)
+    return _MARKDOWN_RE.sub(r"\\\1", text)
 
 
 def label(op: Operator) -> str:

@@ -24,7 +24,7 @@ import certifi
 from multidict import CIMultiDict
 from yarl import URL
 
-USER_AGENT = "ukraine-energy-monitor/0.4.1 (+https://github.com/fastiuk/ukraine-energy-monitor)"
+USER_AGENT = "ukraine-energy-monitor/0.4.2 (+https://github.com/fastiuk/ukraine-energy-monitor)"
 #: The biggest real page (a DTEK shutdowns page) is about 1 MB.
 MAX_BYTES = 5 * 1024 * 1024
 #: Never contacted, whatever a source declares: the aggressor's domains, where the occupation

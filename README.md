@@ -161,6 +161,7 @@ asyncio.run(main())
 - `custom_components/ukraine_outages` — інтеграція для Home Assistant з власною копією
   `ua_outages` (тест `tests/test_vendored_core.py` стежить, щоб копія не відставала);
 - `scripts/source_status.py` — перевірка джерел (`ua_outages.status`), та сама, що публікує бот.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — як влаштована бібліотека: схема потоку даних і діаграма класів.
 
 ## Розробка
 

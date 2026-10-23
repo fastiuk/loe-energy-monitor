@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from ua_outages import FetchError, Provider, SourceBlocked, operator
-from ua_outages.models import KYIV, DaySchedule
+from ua_outages.models import EMERGENCY, KYIV, DaySchedule
 from ua_outages.registry import Operator
 from ua_outages.status import (
     BLOCKED,
@@ -80,6 +80,11 @@ def check(source, op=None):
     return asyncio.run(check_source(op, source, session=None, abroad=True))
 
 
+@pytest.fixture(autouse=True)
+def no_retry_pause(monkeypatch):
+    monkeypatch.setattr("ua_outages.status.RETRY_AFTER", 0)
+
+
 def test_one_source_checked():
     schedule = DaySchedule(DAY, datetime(2026, 10, 20, 9, tzinfo=KYIV), {"1.1": ()}, {})
     assert check(Source({DAY: schedule})) == SourceResult("Source", "ok", "20.10")
@@ -91,6 +96,28 @@ def test_one_source_checked():
     assert check(Source({}, ukraine_only=True)).result == "skipped"
     unknown = DaySchedule(DAY, datetime(2026, 10, 20, 9, tzinfo=KYIV), {}, {"1.1": "?"})
     assert check(Source({DAY: unknown})) == SourceResult("Source", "error", "unparsed groups ['1.1']")
+
+
+def test_emergency_outages_are_a_state_not_a_failure():
+    """YASNO's «EmergencyShutdowns» (Kyiv, 23.10.2026): no hours, the operator's own explanation."""
+    emergency = DaySchedule(DAY, None, {}, {"1.1": EMERGENCY}, (EMERGENCY,))
+    assert check(Source({DAY: emergency})) == SourceResult("Source", "ok", "20.10")
+
+
+def test_a_failed_check_is_tried_once_more():
+    class Flaky(Source):
+        def __init__(self):
+            super().__init__({})
+            self.calls = 0
+
+        async def fetch(self, http, now):
+            self.calls += 1
+            if self.calls == 1:
+                raise FetchError("GET https://example.invalid/x: HTTP 502")
+            return {}
+
+    flaky = Flaky()
+    assert check(flaky) == SourceResult("Flaky", "ok", "nothing published") and flaky.calls == 2
 
 
 def test_check_all_covers_every_operator_once(monkeypatch):

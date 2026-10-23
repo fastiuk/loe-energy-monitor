@@ -14,7 +14,7 @@ from conftest import FakeHttp as RoutedHttp
 from PIL import Image, ImageDraw
 
 from ua_outages.http import FetchError
-from ua_outages.models import KYIV, DaySchedule
+from ua_outages.models import EMERGENCY, KYIV, DaySchedule
 from ua_outages.providers import (
     cherkasy,
     chernihiv,
@@ -36,7 +36,7 @@ from ua_outages.providers import (
     zhytomyr,
 )
 from ua_outages.providers._image import decode_png
-from ua_outages.providers.base import SourceBlocked, SourceFormatError
+from ua_outages.providers.base import NotApplied, SourceBlocked, SourceFormatError
 from ua_outages.registry import STANDARD_GROUPS
 
 OCT17, OCT18 = date(2026, 10, 17), date(2026, 10, 18)
@@ -155,6 +155,28 @@ def test_zhytomyr():
     assert s.updated_at == kyiv(OCT18, 16, 30)
     assert sorted(s.groups) == sorted(STANDARD_GROUPS)
     assert spans(s, "1.2") == [("10:00", "12:00", False), ("15:00", "16:00", False), ("18:00", "20:00", False)]
+
+
+def test_zhytomyr_while_schedules_do_not_apply():
+    """22.10.2026: no tables and no search, only «… аварійні знеструмлення. Графіки погодинних
+    відключень електроенергії наразі не діють»: every group says so for today, nothing is unparsed."""
+    page = (FIXTURES / "zhytomyr_not_applied.html").read_bytes().decode("cp1251")
+    [(day, s)] = zhytomyr.parse(page, OCT18).items()
+    assert day == OCT18 and sorted(s.unknown) == sorted(STANDARD_GROUPS) and s.groups == {}
+    assert set(s.unknown.values()) == {EMERGENCY} and s.notes == (EMERGENCY,) and s.unparsed_groups() == []
+    # Not applied, without emergency outages: nothing is published.
+    assert zhytomyr.parse(page.replace("аварійні знеструмлення", "стабільно"), OCT18) == {}
+    # The address search is gone too: a clear reason, not a format error.
+    with pytest.raises(NotApplied):
+        zhytomyr.parse_select(page, "rem_id")
+    # A page with neither tables nor the announcement is still a format error.
+    with pytest.raises(SourceFormatError):
+        zhytomyr.parse("<html><body>щось інше</body></html>", OCT18)
+
+
+def test_explained_groups_are_not_unparsed():
+    s = DaySchedule(OCT18, None, {}, {"1.1": EMERGENCY, "1.2": "Нерозпізнаний графік", "2.1": "Невідомий стан: X"})
+    assert s.unparsed_groups() == ["1.2", "2.1"]
 
 
 def test_chernivtsi():

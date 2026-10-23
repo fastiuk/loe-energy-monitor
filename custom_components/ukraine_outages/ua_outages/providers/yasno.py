@@ -25,7 +25,7 @@ from datetime import date, datetime
 from typing import Any
 
 from ..http import Fetcher
-from ..models import KYIV, DaySchedule, Outage, at_minute, merge_outages
+from ..models import EMERGENCY, KYIV, DaySchedule, Outage, at_minute, merge_outages
 from ._address import clean_label, entries, numeric_id, pick, require_id, search_term, strip_kind
 from .base import AddressLookup, Choice, Kind, Provider, Resolution, Step, fail
 
@@ -35,7 +35,6 @@ MAX_GROUPS = 200
 MAX_SLOTS = 200
 _GROUP_RE = re.compile(r"\d{1,3}\.\d{1,2}")
 
-EMERGENCY = "Діють аварійні відключення, графік не застосовується"
 
 
 @dataclass

@@ -592,7 +592,7 @@ wheels = [
 
 [[package]]
 name = "ukraine-energy-monitor"
-version = "0.4.5"
+version = "0.4.6"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },

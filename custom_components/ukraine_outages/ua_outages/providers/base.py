@@ -25,6 +25,11 @@ class SourceBlocked(FetchError):
     """The site's bot protection (Imperva, Cloudflare) refused the request."""
 
 
+class NotApplied(FetchError):
+    """The operator says hourly schedules do not apply now and shows nothing to read in their place
+    (e.g. its address search is gone until they do)."""
+
+
 class Kind(StrEnum):
     """What a source reads the schedule from."""
 

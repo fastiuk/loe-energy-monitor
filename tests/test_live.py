@@ -6,13 +6,26 @@ its own (fallbacks too): a failure names the operator and the source that broke.
 
 import asyncio
 import os
+import time
 
 import pytest
 
-from ua_outages import AddressSource, Fetcher, SourceBlocked, now_kyiv, operator
+from ua_outages import AddressSource, Fetcher, NotApplied, SourceBlocked, now_kyiv, operator
 from ua_outages.http import new_session
 from ua_outages.registry import OPERATORS, available_operators
-from ua_outages.status import cell  # labels from the operators' directories: plain text in the summary
+from ua_outages.status import RETRY_AFTER, cell  # cell: directory labels as plain text in the summary
+
+
+def twice(request):
+    """Run a live request; once more after a pause if it fails: sites time out or answer 502 now
+    and then, which says nothing about our code."""
+    try:
+        return asyncio.run(request())
+    except (NotApplied, SourceBlocked):
+        raise
+    except Exception:
+        time.sleep(RETRY_AFTER)
+        return asyncio.run(request())
 
 pytestmark = pytest.mark.skipif(os.environ.get("LIVE") != "1", reason="set LIVE=1 to query the real sources")
 
@@ -71,7 +84,10 @@ def test_address_lookup(operator_id):
                 schedules = await source.fetch_address(Fetcher(session, source.hosts), now_kyiv(), resolution.address)
             return path, resolution, schedules
 
-    path, resolution, schedules = asyncio.run(search())
+    try:
+        path, resolution, schedules = twice(search)
+    except NotApplied as err:
+        pytest.skip(f"the operator shows no address search while schedules do not apply: {err}")
     address = ", ".join(c.label for c in path)
     # Some operators show an address's group only while schedules apply: they say why.
     assert resolution.groups or resolution.reason, f"{operator_id}: {address} is in no group ({resolution.other})"
@@ -80,7 +96,7 @@ def test_address_lookup(operator_id):
     if schedules is not None:
         for schedule in schedules.values():
             assert set(schedule.mentioned_groups()) <= set(op.groups)
-            assert not schedule.unknown, f"{operator_id}: unparsed groups {sorted(schedule.unknown)}"
+            assert not schedule.unparsed_groups(), f"{operator_id}: unparsed groups {schedule.unparsed_groups()}"
         line += f"; графік: {', '.join(f'{d:%d.%m}' for d in schedules) or 'не опубліковано'}"
     _summary(line)
 
@@ -94,7 +110,7 @@ def test_source(operator, source):
             return await source.fetch(Fetcher(session, source.hosts), now_kyiv())
 
     try:
-        schedules = asyncio.run(fetch())
+        schedules = twice(fetch)
     except SourceBlocked as err:
         # Bot protection on GitHub's IPs comes and goes; it says nothing about the format,
         # and the bot falls back to the operator's next source when it happens.
@@ -106,7 +122,7 @@ def test_source(operator, source):
     for day, schedule in schedules.items():
         extra = set(schedule.mentioned_groups()) - set(operator.groups)
         assert not extra, f"{operator.id}: groups the registry does not know: {sorted(extra)}"
-        unknown_groups |= set(schedule.unknown)
+        unknown_groups |= set(schedule.unparsed_groups())
         lines.append(f"{day:%d.%m}: {len(schedule.groups)} груп, нерозпізнано {len(schedule.unknown)}")
     _summary(f"- **{operator.id}** / {source.name}: " + ("; ".join(lines) or "графіків немає"))
     if not source.hours_on_picture:

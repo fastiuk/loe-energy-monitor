@@ -18,12 +18,14 @@ from urllib.parse import quote
 
 from .http import Fetcher, redact
 from .models import now_kyiv
-from .providers.base import AddressSource, Provider, SourceBlocked
+from .providers.base import AddressSource, NotApplied, Provider, SourceBlocked
 from .registry import LATER, NOT_PUBLISHED, OPERATORS_BY_ID, REGIONS, REGIONS_BY_ID, Operator
 
 #: What a person would type at each step of the address search, for per-address sources: the
 #: operators' own offices.
 ADDRESSES = {"ternopil-oe": ["Тернопіль", "Руська", "1"], "vinnytsia-oe": ["Вінниця", "Магістратська", "2"]}
+#: A failed check is tried once more after this many seconds: sites time out or answer 502 now and then.
+RETRY_AFTER = 15
 #: Short names for regions with more than one operator.
 SHORT = {"dtek-dnem": "ДТЕК", "cek": "ЦЕК"}
 #: Where the bot publishes: ``<operator>.svg`` badges, ``summary.json``, a README.
@@ -189,9 +191,18 @@ async def _address_key(op: Operator, session: Any) -> str:
 
 
 async def check_source(op: Operator, source: Provider, session: Any, *, abroad: bool = False) -> SourceResult:
-    """One fetch from one source; ``abroad`` skips the sites that answer only Ukrainian connections."""
+    """One fetch from one source, once more after ``RETRY_AFTER`` if it fails; ``abroad`` skips
+    the sites that answer only Ukrainian connections."""
     if abroad and source.ukraine_only:
         return SourceResult(source.name, "skipped", "only answers connections from Ukraine")
+    result = await _check_once(op, source, session)
+    if result.result == "error":
+        await asyncio.sleep(RETRY_AFTER)
+        result = await _check_once(op, source, session)
+    return result
+
+
+async def _check_once(op: Operator, source: Provider, session: Any) -> SourceResult:
     try:
         http = Fetcher(session, source.hosts)
         if isinstance(source, AddressSource):
@@ -200,13 +211,15 @@ async def check_source(op: Operator, source: Provider, session: Any, *, abroad: 
             schedules = await source.fetch(http, now_kyiv())
     except SourceBlocked as err:
         return SourceResult(source.name, "blocked", redact(str(err)))
+    except NotApplied:
+        return SourceResult(source.name, "ok", "schedules do not apply now")
     except Exception as err:  # every failure is a finding here
         return SourceResult(source.name, "error", redact(f"{type(err).__name__}: {err}"))
     for schedule in schedules.values():
         if extra := set(schedule.mentioned_groups()) - set(op.groups):
             return SourceResult(source.name, "error", f"unknown groups {sorted(extra)}")
-        if schedule.unknown and not source.hours_on_picture:
-            return SourceResult(source.name, "error", f"unparsed groups {sorted(schedule.unknown)}")
+        if (unparsed := schedule.unparsed_groups()) and not source.hours_on_picture:
+            return SourceResult(source.name, "error", f"unparsed groups {unparsed}")
     days = ", ".join(f"{d:%d.%m}" for d in schedules) or "nothing published"
     return SourceResult(source.name, "ok", days)
 

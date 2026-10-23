@@ -1,11 +1,12 @@
 """Hourly power outage schedules (графіки погодинних відключень) for every region of Ukraine."""
 
 from .http import FetchError, Fetcher
-from .models import KYIV, DaySchedule, Outage, Slot, merge_outages, now_kyiv
+from .models import EMERGENCY, KYIV, DaySchedule, Outage, Slot, merge_outages, now_kyiv
 from .providers.base import (
     AddressLookup,
     AddressSource,
     Choice,
+    NotApplied,
     Provider,
     Resolution,
     SourceBlocked,
@@ -27,6 +28,7 @@ from .timeline import (
 )
 
 __all__ = [
+    "EMERGENCY",
     "KYIV",
     "AddressLookup",
     "AddressSource",
@@ -38,6 +40,7 @@ __all__ = [
     "Event",
     "FetchError",
     "Fetcher",
+    "NotApplied",
     "Operator",
     "Outage",
     "Provider",

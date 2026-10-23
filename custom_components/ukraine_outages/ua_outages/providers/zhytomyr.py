@@ -5,6 +5,11 @@ header cell ``<td colspan="48"><b>18.10.2026</b></td>`` and a row per subqueue: 
 ``pidcherga_id=N`` labelled "1.1" and 48 half-hour cells, ``background: #ffffff`` with power
 and ``#ff3333`` without.
 
+While hourly schedules do not apply, the page has neither tables nor the search, only an
+announcement: «Графіки погодинних відключень електроенергії наразі не діють» (with «аварійні
+знеструмлення» when emergency outages replace them, as on 22.10.2026). Then every group gets
+``EMERGENCY`` for today, or nothing is published; the address search raises ``NotApplied``.
+
 The same page finds the group of an address with GET parameters: ``?rem_id=`` fills the
 settlements select, ``&naspunkt_id=`` the streets, and ``&vulica_id=…&all=1`` lists every row
 for the street: settlement, street, houses ("49, 55, 53"), queue, subqueue and a note
@@ -20,10 +25,10 @@ from collections.abc import Sequence
 from datetime import date, datetime
 
 from ..http import Fetcher
-from ..models import KYIV, DaySchedule, Outage, Slot, outages_from_slots
+from ..models import EMERGENCY, KYIV, DaySchedule, Outage, Slot, outages_from_slots
 from ._address import MAX_ENTRIES, clean_label, numeric_id, pick, require_id
 from ._html import Node, parse_html
-from .base import AddressLookup, Choice, Kind, Provider, Resolution, Step, fail
+from .base import AddressLookup, Choice, Kind, NotApplied, Provider, Resolution, Step, fail
 
 URL = "https://www.ztoe.com.ua/unhooking-search.php"
 COLORS = {"#ffffff": Slot.ON, "#ff3333": Slot.OFF}
@@ -31,13 +36,23 @@ _DATE_RE = re.compile(r"(\d{2})\.(\d{2})\.(\d{4})")
 _UPDATED_RE = re.compile(r"Дата оновлення інформації\s{0,5}-\s{0,5}(\d{2}):(\d{2})\s{1,5}(\d{2})\.(\d{2})\.(\d{4})")
 _GROUP_RE = re.compile(r"\d\.\d")
 _BACKGROUND_RE = re.compile(r"background:\s{0,3}(#[0-9a-fA-F]{6})")
+_NOT_APPLIED_RE = re.compile(r"Графіки\s{1,3}погодинних\s{1,3}відключень[^.]{0,80}?не\s{1,3}діють", re.IGNORECASE)
+_EMERGENCY_RE = re.compile(r"аварійн", re.IGNORECASE)
+GROUPS = tuple(f"{q}.{s}" for q in range(1, 7) for s in (1, 2))
+
+
+def _not_applied(root: Node) -> bool:
+    """The page announces that hourly schedules do not apply now."""
+    return _NOT_APPLIED_RE.search(root.text(5000)) is not None
 
 
 def _cells(row: Node) -> list[Node]:
     return [c for c in row.children if isinstance(c, Node) and c.tag == "td"]
 
 
-def parse(page: str) -> dict[date, DaySchedule]:
+def parse(page: str, today: date | None = None) -> dict[date, DaySchedule]:
+    """The tables by day; while schedules do not apply, ``today`` with every group's explanation
+    (emergency outages) or nothing."""
     root = parse_html(page)
     updated = None
     if m := _UPDATED_RE.search(root.text()):
@@ -76,6 +91,10 @@ def parse(page: str) -> dict[date, DaySchedule]:
         else:
             groups[label] = outages_from_slots(day, states)  # type: ignore[arg-type]
     if not days:
+        if _not_applied(root):
+            if today is not None and _EMERGENCY_RE.search(root.text(5000)):
+                return {today: DaySchedule(today, updated, {}, dict.fromkeys(GROUPS, EMERGENCY), (EMERGENCY,))}
+            return {}
         fail("Zhytomyr: no schedule tables on the page")
     return {
         d: DaySchedule(d, updated, groups, unknown)
@@ -92,7 +111,7 @@ class Zhytomyr(Provider):
 
     async def fetch(self, http: Fetcher, now: datetime) -> dict[date, DaySchedule]:
         resp = await http.get(URL)
-        return await asyncio.to_thread(parse, resp.text("cp1251"))
+        return await asyncio.to_thread(parse, resp.text("cp1251"), now.astimezone(KYIV).date())
 
 
 _SELECTS = ("rem_id", "naspunkt_id", "vulica_id")
@@ -101,8 +120,11 @@ HOUSEHOLD = "побутові"
 
 def parse_select(page: str, name: str) -> list[Choice]:
     """Options of ``<select name=…>`` on the search page, without the "Оберіть…" placeholder."""
-    select = next((s for s in parse_html(page).find_all("select") if s.attrs.get("name") == name), None)
+    root = parse_html(page)
+    select = next((s for s in root.find_all("select") if s.attrs.get("name") == name), None)
     if select is None:
+        if _not_applied(root):
+            raise NotApplied("Zhytomyr: no address search while hourly schedules do not apply")
         fail(f"Zhytomyr: no {name} list on the page")
     choices = []
     for option in select.find_all("option")[:MAX_ENTRIES]:
@@ -160,7 +182,9 @@ class ZhytomyrLookup(AddressLookup):
     async def options(self, http: Fetcher, path: Sequence[str], query: str) -> list[Choice]:
         page = await self._page(http, path)
         if len(path) == 3:
-            return pick((Choice(h, h) for h in parse_street(page)), query)
+            if not (houses := parse_street(page)) and _not_applied(parse_html(page)):
+                raise NotApplied("Zhytomyr: no address search while hourly schedules do not apply")
+            return pick((Choice(h, h) for h in houses), query)
         return pick(parse_select(page, _SELECTS[len(path)]), query)
 
     async def resolve(self, http: Fetcher, path: Sequence[str]) -> Resolution:

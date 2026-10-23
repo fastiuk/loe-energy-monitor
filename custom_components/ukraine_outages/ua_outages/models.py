@@ -102,6 +102,13 @@ def outages_from_slots(day: date, slots: Sequence[Slot], *, minutes: int = 30) -
     return merge_outages(outages)
 
 
+#: What a group shows instead of hours while emergency outages (ГАВ) replace the schedule: the
+#: operator's own word, not a parse failure.
+EMERGENCY = "Діють аварійні відключення, графік не застосовується"
+#: Texts in ``DaySchedule.unknown`` that explain the missing hours rather than report a failure.
+EXPLANATIONS = frozenset({EMERGENCY})
+
+
 @dataclass(frozen=True)
 class DaySchedule:
     """The schedule an operator published for one calendar day."""
@@ -124,6 +131,10 @@ class DaySchedule:
 
     def mentioned_groups(self) -> list[str]:
         return sorted(self.groups.keys() | self.unknown.keys(), key=group_sort_key)
+
+    def unparsed_groups(self) -> list[str]:
+        """Groups whose hours could not be read; not those the operator explains (``EXPLANATIONS``)."""
+        return sorted((g for g, text in self.unknown.items() if text not in EXPLANATIONS), key=group_sort_key)
 
     def state(self, group: str) -> tuple[tuple[Outage, ...] | None, str | None]:
         """Comparable state of a group, used to detect schedule changes."""
